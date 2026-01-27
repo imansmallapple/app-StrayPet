@@ -1,0 +1,30 @@
+{
+  "src": [
+    "pages/MainPage",
+    "pages/HomePage",
+    "pages/PetDetailPage",
+    "pages/LoginPage",
+    "pages/RegisterPage",
+    "pages/AdoptionFormPage",
+    "pages/AdoptListPage",
+    "pages/LostListPage",
+    "pages/LostFormPage",
+    "pages/DonationFormPage",
+    "pages/LostDetailPage",
+    "pages/ShelterListPage",
+    "pages/ShelterDetailPage",
+    "pages/BlogListPage",
+    "pages/BlogDetailPage",
+    "pages/HolidayFamilyPage",
+    "pages/ChatPage",
+    "pages/NotificationPage",
+    "pages/EditProfilePage",
+    "pages/FavoritePetsPage",
+    "pages/FavoriteArticlesPage",
+    "pages/MyPetsPage",
+    "pages/MyArticlesPage",
+    "pages/FriendsPage",
+    "pages/AboutPage",
+    "pages/HelpPage"
+  ]
+}

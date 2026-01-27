@@ -1,0 +1,56 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\chens\\.ohos\\config\\default_StrayPet_Zpwr9uI-66O05dc-mZlHc8gVsFEdTIblG1MeVkk3wyI=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BEF99EF4305E264417288F448CE7096950F60977036F6C1DD69B9CDE08866AAA550B0156C65DC6A",
+          "profile": "C:\\Users\\chens\\.ohos\\config\\default_StrayPet_Zpwr9uI-66O05dc-mZlHc8gVsFEdTIblG1MeVkk3wyI=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\chens\\.ohos\\config\\default_StrayPet_Zpwr9uI-66O05dc-mZlHc8gVsFEdTIblG1MeVkk3wyI=.p12",
+          "storePassword": "0000001B195635AF309B1F134581892DC3A0141B05354E772BDE6CA5EC7B74E076E6425B44769A967324B1"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "6.0.1(21)",
+        "compatibleSdkVersion": "6.0.0(20)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "mobile",
+      "srcPath": "./mobile",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

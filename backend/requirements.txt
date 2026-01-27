@@ -1,0 +1,30 @@
+asgiref~=3.8.1
+Django~=5.1
+django-cors-headers==4.7.0
+django-filter==25.1
+djangorestframework~=3.15.2
+djangorestframework_simplejwt==5.5.1
+Markdown==3.8.2
+pillow~=10.4.0
+PyJWT==2.10.1
+sqlparse~=0.5.1
+typing_extensions~=4.13.2
+tzdata==2025.2
+django-smart-selects==1.7.2
+pycountry~=24.6.1
+whitenoise==6.7.0
+# 可选：若你确实用到以下再保留
+numpy~=1.26.4
+requests~=2.31.0
+packaging~=24.2
+pyparsing~=3.2.1
+pytz~=2025.2   # Django5 默认 zoneinfo，不一定需要
+Jinja2~=3.1.4  # 仅当项目真的用到模板引擎 Jinja2 时保留
+
+# GIS 扩展（保留序列化/过滤，注意：不再引用其 renderers）
+djangorestframework-gis==1.2.0
+
+gunicorn~=23.0
+psycopg2-binary~=2.9
+psycopg2~=2.9
+bleach>=6.1.0

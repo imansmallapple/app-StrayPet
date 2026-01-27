@@ -1,0 +1,56 @@
+<div id="viewer{{widget.name}}" style="width:80%; padding: 0px 20px;"></div>
+
+<script>
+
+  function getCookie(name){
+    let cookieValue = null
+    if(document.cookie && document.cookie !== ''){
+      const cookies = document.cookie.split(';')
+      for(let i = 0; i <  cookies.length; i++){
+        const cookie = cookies[i].trim()
+        if(cookie.substring(0, name.length + 1) === (name + '=')){
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1))
+          break
+        }
+      }
+    }
+    return cookieValue
+  }
+
+  let textarea = document.querySelector('#id_{{widget.name}}');
+  let content = textarea.value;
+  textarea.style.display = 'none';
+  const csrftoken = getCookie('csrftoken')
+
+  const viewer = new toastui.Editor({
+    el: document.querySelector('#viewer{{ widget.name }}'),
+    initialValue: content,
+    height: '800px',
+    language: 'zh-CN',
+    hooks: {
+      addImageBlobHook: async (blob, callback) => {
+        const sendData = new FormData();
+        sendData.append('image', blob);
+
+        try {
+          const response = await fetch('{% url "upload_image" %}', {
+            method: 'POST',
+            body: sendData,
+            headers: {
+              'X-CSRFToken': csrftoken
+            }
+          });
+          const result = await response.json();
+          callback(result.url, result.text)
+        } catch (error) {
+          console.log(error);
+        }
+      },
+    },
+    events: {
+      change: function () {
+        textarea.value = viewer.getMarkdown();
+      },
+    },
+  });
+</script>

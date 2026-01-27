@@ -1,0 +1,73 @@
+# apps/pet/models.py 中添加以下代码
+
+from django.db import models
+from django.contrib.auth.models import User
+
+class HolidayFamily(models.Model):
+    """Holiday Family 模型 - 用户注册成为Holiday Family的记录"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='holiday_family',
+        verbose_name='User'
+    )
+    
+    # 申请信息
+    full_name = models.CharField('Full Name', max_length=100)
+    email = models.EmailField('Email')
+    phone = models.CharField('Phone Number', max_length=20)
+    address = models.TextField('Address')
+    city = models.CharField('City', max_length=100)
+    
+    # 宠物信息
+    pet_count = models.IntegerField('Number of Pets', default=0)
+    pet_types = models.CharField(
+        'Pet Types (dog/cat/other)',
+        max_length=200,
+        help_text='Separate with commas'
+    )
+    
+    # 申请原因/说明
+    motivation = models.TextField(
+        'Why do you want to be a Holiday Family?',
+        help_text='Tell us about your experience with pets and why you\'d like to participate'
+    )
+    
+    # 条款同意
+    terms_agreed = models.BooleanField('I agree to the terms and conditions', default=False)
+    
+    # 申请状态
+    status = models.CharField(
+        'Status',
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    
+    # 时间戳
+    applied_at = models.DateTimeField('Applied At', auto_now_add=True)
+    reviewed_at = models.DateTimeField('Reviewed At', null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_holiday_families',
+        verbose_name='Reviewed By'
+    )
+    
+    review_notes = models.TextField('Review Notes', blank=True, default='')
+    
+    class Meta:
+        verbose_name = 'Holiday Family'
+        verbose_name_plural = 'Holiday Families'
+        ordering = ['-applied_at']
+    
+    def __str__(self):
+        return f'{self.user.username} - {self.status}'

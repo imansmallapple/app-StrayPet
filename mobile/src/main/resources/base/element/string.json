@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "MobileAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "MobileAbility_label",
+      "value": "label"
+    }
+  ]
+}
