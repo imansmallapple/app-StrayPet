@@ -175,15 +175,10 @@ export struct HomeTabContent {
       }
 
       Column() {
-        Row() {
-          Text('🚨')
-            .fontSize(12)
-          Text(lost.pet_name.length > 0 ? lost.pet_name : lost.species)
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#D32F2F')
-            .margin({ left: 4 })
-        }
+        Text(lost.pet_name.length > 0 ? lost.pet_name : lost.species)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#D32F2F')
 
         Text(`${lost.species} · ${lost.breed.length > 0 ? lost.breed : 'Unknown'}`)
           .fontSize(12)
@@ -212,6 +207,16 @@ export struct HomeTabContent {
     .borderRadius(10)
     .margin({ bottom: 8 })
     .shadow({ radius: 2, color: '#0D000000', offsetX: 0, offsetY: 1 })
+    .onClick(() => {
+      try {
+        router.pushUrl({
+          url: 'pages/LostDetailPage',
+          params: { lostId: lost.id }
+        });
+      } catch (err) {
+        console.error('Navigation error', JSON.stringify(err));
+      }
+    })
   }
 
   build() {
@@ -226,8 +231,9 @@ export struct HomeTabContent {
 
           Blank()
 
-          Text('🔔')
+          SymbolGlyph($r('sys.symbol.bell_fill'))
             .fontSize(24)
+            .fontColor(['#FF6B35'])
             .onClick(() => {
               try {
                 router.pushUrl({ url: 'pages/NotificationPage' });
@@ -295,7 +301,7 @@ export struct HomeTabContent {
             this.navigateTo('pages/HolidayFamilyPage');
           })
           this.QuickEntryItem($r('sys.symbol.plus_circle'), 'Found', '#FF9800', () => {
-            this.navigateTo('pages/LostFormPage'); // Navigate to report found pet
+            this.navigateTo('pages/LostFormPage');
           })
           this.QuickEntryItem($r('sys.symbol.gift_fill'), 'Donate', '#E91E63', () => {
             this.navigateTo('pages/DonationFormPage');
@@ -344,7 +350,10 @@ export struct HomeTabContent {
         } else {
           Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
             ForEach(this.recommendedPets, (pet: Pet) => {
-              this.PetMiniCard(pet)
+              Column() {
+                this.PetMiniCard(pet)
+              }
+              .margin({ bottom: 12 })
             })
           }
           .padding({ left: 16, right: 16 })

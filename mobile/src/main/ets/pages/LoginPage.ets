@@ -76,6 +76,8 @@ struct LoginPage {
     const request = new LoginRequest(this.username.trim(), this.password, this.captcha.trim(), this.captchaUid);
     const result: LoginResult = await this.userService.login(request);
 
+    this.isLoading = false;
+
     if (result.success) {
       // Save tokens
       if (this.context !== null) {
@@ -93,12 +95,21 @@ struct LoginPage {
       this.captcha = '';
       this.loadCaptcha();
     }
-
-    this.isLoading = false;
   }
 
   build() {
     Column() {
+      // Back button
+      Row() {
+        SymbolGlyph($r('sys.symbol.chevron_left'))
+          .fontSize(24)
+          .fontColor(['#424242'])
+          .onClick(() => { router.back(); })
+        Blank()
+      }
+      .width('100%')
+      .padding({ left: 16, top: 16, right: 16 })
+
       // Logo and title
       Column() {
         Image($r('app.media.startIcon'))
@@ -116,7 +127,7 @@ struct LoginPage {
           .fontColor('#9E9E9E')
           .margin({ top: 8 })
       }
-      .margin({ top: 60 })
+      .margin({ top: 20 })
 
       // Login form
       Column() {
@@ -200,7 +211,10 @@ struct LoginPage {
               .layoutWeight(1)
               .onChange((value: string) => {
                 this.captcha = value;
-                this.errorMessage = '';
+                // Only clear error when user types something
+                if (value.length > 0) {
+                  this.errorMessage = '';
+                }
               })
               .onSubmit(() => {
                 this.handleLogin();

@@ -83,6 +83,32 @@ export class RegisterRequest {
   }
 }
 
+export class UpdateProfileRequest {
+  first_name: string = '';
+  last_name: string = '';
+  phone: string = '';
+  living_situation: string = '';
+  has_yard: boolean = false;
+  has_experience: boolean = false;
+  other_pets: string = '';
+  additional_notes: string = '';
+
+  constructor() {}
+
+  toJSON(): string {
+    return JSON.stringify({
+      first_name: this.first_name,
+      last_name: this.last_name,
+      phone: this.phone,
+      living_situation: this.living_situation,
+      has_yard: this.has_yard,
+      has_experience: this.has_experience,
+      other_pets: this.other_pets,
+      additional_notes: this.additional_notes
+    });
+  }
+}
+
 export class Notification {
   id: number = 0;
   notification_type: string = '';

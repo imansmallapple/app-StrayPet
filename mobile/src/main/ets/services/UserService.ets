@@ -4,7 +4,7 @@
 import { HttpClient } from './HttpClient';
 import { ApiConfig, ApiEndpoints } from './ApiConfig';
 import { TokenManager } from './TokenManager';
-import { User, TokenResponse, LoginRequest, RegisterRequest, Notification, ApiResponse } from '../models/index';
+import { User, UserProfile, TokenResponse, LoginRequest, RegisterRequest, UpdateProfileRequest, Notification, ApiResponse } from '../models/index';
 
 export class UserResult {
   success: boolean = false;
@@ -49,6 +49,7 @@ export class UserService {
   async login(request: LoginRequest): Promise<LoginResult> {
     const result = new LoginResult();
     const url = ApiConfig.buildUrl(ApiEndpoints.TOKEN);
+    console.info('[UserService] Login attempt for:', request.username);
 
     try {
       const response = await this.httpClient.post(url, JSON.stringify({
@@ -58,20 +59,26 @@ export class UserService {
         uid: request.uid
       }), false);
 
+      console.info('[UserService] Login response:', response.success);
+
       if (response.success) {
         const parsed = JSON.parse(response.data) as Record<string, string>;
         const tokens = new TokenResponse();
         tokens.access = parsed['access'] as string || '';
         tokens.refresh = parsed['refresh'] as string || '';
 
+        console.info('[UserService] Token received, length:', tokens.access.length);
         TokenManager.getInstance().setTokens(tokens.access, tokens.refresh);
+        console.info('[UserService] Token stored, isLoggedIn:', TokenManager.getInstance().isLoggedIn());
         result.success = true;
         result.tokens = tokens;
       } else {
         result.errorMessage = this.parseErrorMessage(response.data);
+        console.error('[UserService] Login failed:', result.errorMessage);
       }
     } catch (error) {
       result.errorMessage = error instanceof Error ? error.message : 'Login failed';
+      console.error('[UserService] Login exception:', result.errorMessage);
     }
 
     return result;
@@ -130,13 +137,17 @@ export class UserService {
 
   async getCurrentUser(): Promise<UserResult> {
     const result = new UserResult();
-    const url = ApiConfig.buildUrl(ApiEndpoints.USER_INFO) + 'me/';
+    const url = ApiConfig.buildUrl(ApiEndpoints.USER_ME);
 
     try {
+      console.info('[UserService] Getting current user from:', url);
       const response = await this.httpClient.get(url, true);
+      console.info('[UserService] Response success:', response.success);
+      console.info('[UserService] Response data:', response.data);
 
       if (response.success) {
         const user = this.parseUser(response.data);
+        console.info('[UserService] Parsed user:', user.username, user.email);
         result.success = true;
         result.data = user;
 
@@ -145,9 +156,32 @@ export class UserService {
         }
       } else {
         result.errorMessage = this.parseErrorMessage(response.data);
+        console.error('[UserService] Error:', result.errorMessage);
       }
     } catch (error) {
       result.errorMessage = error instanceof Error ? error.message : 'Failed to get user info';
+      console.error('[UserService] Exception:', result.errorMessage);
+    }
+
+    return result;
+  }
+
+  async updateProfile(data: UpdateProfileRequest): Promise<UserResult> {
+    const result = new UserResult();
+    const url = ApiConfig.buildUrl(ApiEndpoints.USER_ME);
+
+    try {
+      const response = await this.httpClient.patch(url, data.toJSON(), true);
+
+      if (response.success) {
+        const user = this.parseUser(response.data);
+        result.success = true;
+        result.data = user;
+      } else {
+        result.errorMessage = this.parseErrorMessage(response.data);
+      }
+    } catch (error) {
+      result.errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
     }
 
     return result;
@@ -207,6 +241,21 @@ export class UserService {
       user.is_active = Boolean(parsed['is_active']);
       user.is_staff = Boolean(parsed['is_staff']);
       user.date_joined = String(parsed['date_joined']) || '';
+
+      // Parse flattened profile fields from API response
+      const profile = new UserProfile();
+      profile.phone = String(parsed['phone']) || '';
+      profile.avatar = String(parsed['avatar']) || '';
+      profile.is_holiday_family_certified = Boolean(parsed['is_holiday_family_certified']);
+      profile.preferred_species = String(parsed['preferred_species']) || '';
+      profile.preferred_size = String(parsed['preferred_size']) || '';
+      profile.preferred_gender = String(parsed['preferred_gender']) || '';
+      profile.has_experience = Boolean(parsed['has_experience']);
+      profile.living_situation = String(parsed['living_situation']) || '';
+      profile.has_yard = Boolean(parsed['has_yard']);
+      profile.other_pets = String(parsed['other_pets']) || '';
+      profile.additional_notes = String(parsed['additional_notes']) || '';
+      user.profile = profile;
     } catch (error) {
       console.error('Failed to parse user', JSON.stringify(error));
     }

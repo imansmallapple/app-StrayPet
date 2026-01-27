@@ -19,12 +19,21 @@ struct MainPage {
   private tabController: TabsController = new TabsController();
 
   aboutToAppear(): void {
+    console.info('[MainPage] aboutToAppear');
+    this.checkLoginStatus();
+  }
+
+  onPageShow(): void {
+    // Re-check login status when page becomes visible (e.g., after login)
+    console.info('[MainPage] onPageShow');
     this.checkLoginStatus();
   }
 
   checkLoginStatus(): void {
     const token = TokenManager.getInstance().getAccessToken();
+    const wasLoggedIn = this.isLoggedIn;
     this.isLoggedIn = token.length > 0;
+    console.info('[MainPage] Login status:', this.isLoggedIn, 'token length:', token.length);
   }
 
   @Builder

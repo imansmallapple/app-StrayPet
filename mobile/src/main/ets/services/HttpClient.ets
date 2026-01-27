@@ -48,17 +48,21 @@ export class HttpClient {
   async get(url: string, needAuth: boolean = true): Promise<HttpResponse> {
     const httpRequest = http.createHttp();
     const response = new HttpResponse();
+    const headers = this.getHeaders(needAuth);
+    console.info('[HttpClient] GET', url);
+    console.info('[HttpClient] Auth:', needAuth ? 'required' : 'none');
 
     try {
       const result = await httpRequest.request(url, {
         method: http.RequestMethod.GET,
-        header: this.getHeaders(needAuth),
+        header: headers,
         connectTimeout: ApiConfig.TIMEOUT,
         readTimeout: ApiConfig.TIMEOUT
       });
 
       response.code = result.responseCode;
       response.success = result.responseCode >= 200 && result.responseCode < 300;
+      console.info('[HttpClient] Response code:', result.responseCode);
 
       if (typeof result.result === 'string') {
         response.data = result.result;
@@ -72,6 +76,7 @@ export class HttpClient {
       } else {
         response.errorMessage = 'Unknown error occurred';
       }
+      console.error('[HttpClient] Error:', response.errorMessage);
     } finally {
       httpRequest.destroy();
     }

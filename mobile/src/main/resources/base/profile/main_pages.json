@@ -13,6 +13,7 @@
     "pages/LostDetailPage",
     "pages/ShelterListPage",
     "pages/ShelterDetailPage",
+    "pages/ShelterMapPage",
     "pages/BlogListPage",
     "pages/BlogDetailPage",
     "pages/HolidayFamilyPage",

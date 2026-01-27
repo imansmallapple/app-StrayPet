@@ -7,6 +7,7 @@ export class ApiEndpoints {
   static readonly TOKEN: string = 'user/token/';
   static readonly TOKEN_REFRESH: string = 'user/token/refresh/';
   static readonly REGISTER: string = 'user/register/';
+  static readonly USER_ME: string = 'user/me/';
   static readonly USER_INFO: string = 'user/userinfo/';
   static readonly USER_LIST: string = 'user/list/';
   static readonly NOTIFICATIONS: string = 'user/notifications/';
@@ -40,7 +41,7 @@ export class ApiEndpoints {
 export class ApiConfig {
   // Base URL - change this to your backend server address
   // Use your computer's actual IP address for device/emulator access
-  static readonly BASE_URL: string = 'http://192.168.123.237:8000/';
+  static readonly BASE_URL: string = 'http://172.20.10.12:8000/';
 
   // Request timeout in milliseconds
   static readonly TIMEOUT: number = 30000;
@@ -68,4 +69,15 @@ export class ApiConfig {
     }
     return url;
   }
+}
+
+// Mapbox configuration
+export class MapConfig {
+  // Mapbox public token
+  static readonly MAPBOX_TOKEN: string = 'pk.eyJ1IjoiY3NvbmcxMyIsImEiOiJjbWlrbXl0bGEwYmlpM2tzZGQ0ZDN6MnllIn0.dmkfu8QVBBbGaSdxmYY-wA';
+  
+  // Default map center (Beijing)
+  static readonly DEFAULT_LAT: number = 39.9042;
+  static readonly DEFAULT_LNG: number = 116.4074;
+  static readonly DEFAULT_ZOOM: number = 10;
 }

@@ -24,10 +24,14 @@ class MenuItem {
 
 @Component
 export struct ProfileTabContent {
-  @Prop isLoggedIn: boolean = false;
+  @Prop @Watch('onLoginStateChange') isLoggedIn: boolean = false;
   @State username: string = '';
   @State email: string = '';
   @State avatar: string = '';
+  @State phone: string = '';
+  @State firstName: string = '';
+  @State lastName: string = '';
+  @State isHolidayFamilyCertified: boolean = false;
   @State isLoading: boolean = false;
 
   private userService: UserService = new UserService();
@@ -38,13 +42,39 @@ export struct ProfileTabContent {
     }
   }
 
+  onLoginStateChange(): void {
+    if (this.isLoggedIn) {
+      this.loadUserInfo();
+    } else {
+      // Clear user data when logged out
+      this.username = '';
+      this.email = '';
+      this.avatar = '';
+      this.phone = '';
+      this.firstName = '';
+      this.lastName = '';
+      this.isHolidayFamilyCertified = false;
+    }
+  }
+
   async loadUserInfo(): Promise<void> {
+    console.info('[ProfileTab] Loading user info, isLoggedIn:', this.isLoggedIn);
     this.isLoading = true;
     const result: UserResult = await this.userService.getCurrentUser();
+    console.info('[ProfileTab] Result success:', result.success);
     if (result.success && result.data !== null) {
+      console.info('[ProfileTab] User data:', result.data.username, result.data.email);
       this.username = result.data.username;
       this.email = result.data.email;
       this.avatar = result.data.getAvatar();
+      this.firstName = result.data.first_name;
+      this.lastName = result.data.last_name;
+      if (result.data.profile !== null) {
+        this.phone = result.data.profile.phone;
+        this.isHolidayFamilyCertified = result.data.profile.is_holiday_family_certified;
+      }
+    } else {
+      console.error('[ProfileTab] Failed to load user:', result.errorMessage);
     }
     this.isLoading = false;
   }
@@ -56,53 +86,120 @@ export struct ProfileTabContent {
     this.username = '';
     this.email = '';
     this.avatar = '';
+    this.phone = '';
+    this.firstName = '';
+    this.lastName = '';
+    this.isHolidayFamilyCertified = false;
+  }
+
+  getDisplayName(): string {
+    if (this.firstName.length > 0 || this.lastName.length > 0) {
+      return `${this.firstName} ${this.lastName}`.trim();
+    }
+    return this.username.length > 0 ? this.username : 'User';
   }
 
   @Builder
   ProfileHeader(): void {
     Column() {
-      // Avatar
-      if (this.avatar.length > 0) {
-        Image(this.avatar)
-          .width(80)
-          .height(80)
-          .borderRadius(40)
-          .objectFit(ImageFit.Cover)
+      // Avatar with loading indicator
+      Stack() {
+        if (this.avatar.length > 0) {
+          Image(this.avatar)
+            .width(90)
+            .height(90)
+            .borderRadius(45)
+            .objectFit(ImageFit.Cover)
+            .border({ width: 3, color: '#FFFFFF' })
+        } else {
+          Column() {
+            SymbolGlyph($r('sys.symbol.person_fill'))
+              .fontSize(40)
+              .fontColor(['#757575'])
+          }
+          .width(90)
+          .height(90)
+          .borderRadius(45)
+          .backgroundColor('#E0E0E0')
+          .justifyContent(FlexAlign.Center)
           .border({ width: 3, color: '#FFFFFF' })
-      } else {
-        Column() {
-          SymbolGlyph($r('sys.symbol.person_fill'))
-            .fontSize(36)
-            .fontColor(['#757575'])
         }
-        .width(80)
-        .height(80)
-        .borderRadius(40)
-        .backgroundColor('#E0E0E0')
-        .justifyContent(FlexAlign.Center)
-        .border({ width: 3, color: '#FFFFFF' })
-      }
 
-      Text(this.username.length > 0 ? this.username : 'User')
-        .fontSize(20)
+        // Holiday Family Certified Badge
+        if (this.isHolidayFamilyCertified) {
+          Row() {
+            SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+              .fontSize(18)
+              .fontColor(['#4CAF50'])
+          }
+          .width(26)
+          .height(26)
+          .borderRadius(13)
+          .backgroundColor('#FFFFFF')
+          .justifyContent(FlexAlign.Center)
+          .position({ x: '70%', y: '70%' })
+          .shadow({ radius: 4, color: 'rgba(0,0,0,0.2)', offsetX: 0, offsetY: 2 })
+        }
+      }
+      .width(90)
+      .height(90)
+
+      // Display Name
+      Text(this.getDisplayName())
+        .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF')
-        .margin({ top: 12 })
+        .margin({ top: 14 })
 
-      Text(this.email.length > 0 ? this.email : '')
-        .fontSize(14)
-        .fontColor('#FFFFFF')
-        .opacity(0.8)
+      // Username (if display name is different)
+      if (this.firstName.length > 0 || this.lastName.length > 0) {
+        Text(`@${this.username}`)
+          .fontSize(14)
+          .fontColor('#FFFFFF')
+          .opacity(0.85)
+          .margin({ top: 4 })
+      }
+
+      // Email
+      if (this.email.length > 0) {
+        Row() {
+          SymbolGlyph($r('sys.symbol.envelope_fill'))
+            .fontSize(14)
+            .fontColor(['#FFFFFF'])
+            .opacity(0.8)
+          Text(this.email)
+            .fontSize(13)
+            .fontColor('#FFFFFF')
+            .opacity(0.8)
+            .margin({ left: 6 })
+        }
+        .margin({ top: 8 })
+      }
+
+      // Phone
+      if (this.phone.length > 0) {
+        Row() {
+          SymbolGlyph($r('sys.symbol.phone_fill'))
+            .fontSize(14)
+            .fontColor(['#FFFFFF'])
+            .opacity(0.8)
+          Text(this.phone)
+            .fontSize(13)
+            .fontColor('#FFFFFF')
+            .opacity(0.8)
+            .margin({ left: 6 })
+        }
         .margin({ top: 4 })
+      }
 
       // Edit profile button
-      Button('Edit Profile')
+      Button('My Profile')
         .fontSize(14)
         .fontColor('#FF6B35')
         .backgroundColor('#FFFFFF')
         .borderRadius(20)
         .height(36)
-        .padding({ left: 20, right: 20 })
+        .padding({ left: 24, right: 24 })
         .margin({ top: 16 })
         .onClick(() => {
           try {
@@ -113,7 +210,7 @@ export struct ProfileTabContent {
         })
     }
     .width('100%')
-    .padding({ top: 40, bottom: 24 })
+    .padding({ top: 40, bottom: 28 })
     .backgroundColor('#FF6B35')
     .alignItems(HorizontalAlign.Center)
   }

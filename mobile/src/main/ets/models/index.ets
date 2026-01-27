@@ -1,7 +1,7 @@
 // Export all models
 
 export { Pet, PetPhoto, Address, UserBasic, Shelter } from './Pet';
-export { User, UserProfile, TokenResponse, LoginRequest, RegisterRequest, Notification } from './User';
+export { User, UserProfile, TokenResponse, LoginRequest, RegisterRequest, UpdateProfileRequest, Notification } from './User';
 export { Adoption, AdoptionRequest, Donation, DonationPhoto, DonationRequest } from './Adoption';
 export { Lost, LostRequest } from './Lost';
 export { HolidayFamilyApplication, HolidayFamilyRequest } from './HolidayFamily';

@@ -6,6 +6,7 @@ import { LoadingView, EmptyView, ErrorView } from '../components/CommonViews';
 import { SearchBar } from '../components/SearchBar';
 import { Shelter } from '../models/index';
 import { ShelterService, ShelterFilter } from '../services/ShelterService';
+import { MapConfig } from '../services/ApiConfig';
 
 @Entry
 @Component
@@ -54,12 +55,31 @@ struct ShelterListPage {
     return 'No address';
   }
 
+  // Generate Mapbox static map URL
+  getStaticMapUrl(shelter: Shelter): string {
+    if (shelter.address !== null && shelter.address.latitude !== 0 && shelter.address.longitude !== 0) {
+      const lng = shelter.address.longitude;
+      const lat = shelter.address.latitude;
+      const color = shelter.is_verified ? '4CAF50' : 'FF6B35';
+      // Mapbox Static Images API with marker
+      return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+${color}(${lng},${lat})/${lng},${lat},14,0/400x240@2x?access_token=${MapConfig.MAPBOX_TOKEN}`;
+    }
+    return '';
+  }
+
   @Builder
   ShelterCard(shelter: Shelter): void {
     Column() {
-      // Cover image
+      // Cover image or Static Map
       if (shelter.cover_image.length > 0) {
         Image(shelter.cover_image)
+          .width('100%')
+          .height(120)
+          .objectFit(ImageFit.Cover)
+          .borderRadius({ topLeft: 12, topRight: 12 })
+      } else if (shelter.address !== null && shelter.address.latitude !== 0) {
+        // Show static map if location available
+        Image(this.getStaticMapUrl(shelter))
           .width('100%')
           .height(120)
           .objectFit(ImageFit.Cover)

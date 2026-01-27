@@ -74,9 +74,51 @@ struct PetDetailPage {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
+    Column() {
+      // Header
+      Row() {
+        Row() {
+          SymbolGlyph($r('sys.symbol.chevron_left'))
+            .fontSize(24)
+            .fontColor(['#424242'])
+        }
+        .width(40)
+        .height(40)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => {
+          router.back();
+        })
+
+        Text('Pet Details')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#424242')
+          .margin({ left: 8 })
+
+        Blank()
+
+        if (this.pet !== null) {
+          Row() {
+            SymbolGlyph(this.pet.is_favorited ? $r('sys.symbol.heart_fill') : $r('sys.symbol.heart'))
+              .fontSize(24)
+              .fontColor([this.pet.is_favorited ? '#FF4081' : '#424242'])
+          }
+          .width(40)
+          .height(40)
+          .justifyContent(FlexAlign.Center)
+          .onClick(() => {
+            this.toggleFavorite();
+          })
+        }
+      }
+      .width('100%')
+      .padding({ left: 8, right: 8, top: 12, bottom: 12 })
+      .backgroundColor('#FFFFFF')
+
+      // Content
       if (this.isLoading) {
         LoadingView({ message: 'Loading pet details...' })
+          .layoutWeight(1)
       } else if (this.hasError) {
         ErrorView({
           message: this.errorMessage,
@@ -84,60 +126,25 @@ struct PetDetailPage {
             this.loadPetDetail();
           }
         })
+          .layoutWeight(1)
       } else if (this.pet !== null) {
         Scroll() {
           Column() {
             // Photo gallery
-            Stack({ alignContent: Alignment.TopStart }) {
-              Swiper() {
-                ForEach(this.getAllPhotos(), (photoUrl: string) => {
-                  Image(photoUrl)
-                    .width('100%')
-                    .height(300)
-                    .objectFit(ImageFit.Cover)
-                })
-              }
-              .width('100%')
-              .height(300)
-              .indicator(true)
-              .onChange((index: number) => {
-                this.currentPhotoIndex = index;
-              })
-
-              // Back button
-              Row() {
-                Text('←')
-                  .fontSize(24)
-                  .fontColor('#FFFFFF')
-              }
-              .width(40)
-              .height(40)
-              .borderRadius(20)
-              .backgroundColor('rgba(0,0,0,0.3)')
-              .justifyContent(FlexAlign.Center)
-              .margin({ left: 16, top: 16 })
-              .onClick(() => {
-                router.back();
-              })
-
-              // Favorite button
-              Row() {
-                Text(this.pet.is_favorited ? '♥' : '♡')
-                  .fontSize(22)
-                  .fontColor(this.pet.is_favorited ? '#FF4081' : '#FFFFFF')
-              }
-              .width(40)
-              .height(40)
-              .borderRadius(20)
-              .backgroundColor('rgba(0,0,0,0.3)')
-              .justifyContent(FlexAlign.Center)
-              .position({ x: '85%', y: 16 })
-              .onClick(() => {
-                this.toggleFavorite();
+            Swiper() {
+              ForEach(this.getAllPhotos(), (photoUrl: string) => {
+                Image(photoUrl)
+                  .width('100%')
+                  .height(300)
+                  .objectFit(ImageFit.Cover)
               })
             }
-
-            // Pet info card
+            .width('100%')
+            .height(300)
+            .indicator(true)
+            .onChange((index: number) => {
+              this.currentPhotoIndex = index;
+            })
             Column() {
               // Name and status
               Row() {
@@ -346,8 +353,9 @@ struct PetDetailPage {
           }
         }
         .width('100%')
-        .height('100%')
+        .layoutWeight(1)
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
       }
 
       // Adopt button
@@ -368,7 +376,7 @@ struct PetDetailPage {
             })
         }
         .width('100%')
-        .height(80)
+        .padding(16)
         .justifyContent(FlexAlign.Center)
         .backgroundColor('#FFFFFF')
         .shadow({
@@ -381,6 +389,6 @@ struct PetDetailPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#FAFAFA')
+    .backgroundColor('#F5F5F5')
   }
 }

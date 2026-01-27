@@ -157,22 +157,27 @@ export class LostService {
     lost.lost_time = String(data['lost_time'] || '');
     lost.description = String(data['description'] || '');
     lost.reward = Number(data['reward']) || 0;
-    lost.photo = String(data['photo'] || '');
+    lost.photo = String(data['photo'] || data['photo_url'] || '');
     lost.status = String(data['status'] || 'open');
     lost.contact_phone = String(data['contact_phone'] || '');
     lost.contact_email = String(data['contact_email'] || '');
     lost.created_at = String(data['created_at'] || '');
     lost.updated_at = String(data['updated_at'] || '');
 
-    // Parse address
-    const addressData = data['address'] as Record<string, Object> | null;
-    if (addressData !== null && addressData !== undefined) {
-      const address = new Address();
-      address.id = Number(addressData['id']) || 0;
-      address.country = String(addressData['country_name'] || addressData['country'] || '');
-      address.region = String(addressData['region_name'] || addressData['region'] || '');
-      address.city = String(addressData['city_name'] || addressData['city'] || '');
-      address.street = String(addressData['street'] || '');
+    // Parse address - API returns flat fields for address data
+    const address = new Address();
+    address.country = String(data['country'] || '');
+    address.region = String(data['region'] || '');
+    address.city = String(data['city'] || '');
+    address.street = String(data['street'] || '');
+    address.postal_code = String(data['postal_code'] || '');
+    // Latitude and longitude are returned as top-level fields
+    address.latitude = Number(data['latitude']) || 0;
+    address.longitude = Number(data['longitude']) || 0;
+    
+    // Only set address if we have meaningful data
+    if (address.latitude !== 0 || address.longitude !== 0 || 
+        address.city.length > 0 || address.country.length > 0) {
       lost.address = address;
     }
 

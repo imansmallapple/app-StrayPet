@@ -112,17 +112,31 @@ export class ShelterService {
     shelter.email = String(data['email'] || '');
     shelter.phone = String(data['phone'] || '');
     shelter.website = String(data['website'] || '');
-    shelter.logo = String(data['logo'] || '');
-    shelter.cover_image = String(data['cover_image'] || '');
+    // Handle null values properly - null should become empty string
+    const logoVal = data['logo'] || data['logo_url'];
+    shelter.logo = (logoVal !== null && logoVal !== undefined) ? String(logoVal) : '';
+    const coverVal = data['cover_image'] || data['cover_url'];
+    shelter.cover_image = (coverVal !== null && coverVal !== undefined) ? String(coverVal) : '';
     shelter.capacity = Number(data['capacity']) || 0;
     shelter.current_animals = Number(data['current_animals']) || 0;
     shelter.is_verified = Boolean(data['is_verified']);
     shelter.is_active = Boolean(data['is_active']);
 
-    // Parse address
-    const addressData = data['address'] as Record<string, Object> | null;
-    if (addressData !== null && addressData !== undefined) {
-      shelter.address = this.parseAddress(addressData);
+    // Parse address - API returns flat fields
+    const address = new Address();
+    address.country = String(data['country'] || '');
+    address.region = String(data['region'] || '');
+    address.city = String(data['city'] || '');
+    address.street = String(data['street'] || '');
+    address.building_number = String(data['building_number'] || '');
+    address.postal_code = String(data['postal_code'] || '');
+    address.latitude = Number(data['latitude']) || 0;
+    address.longitude = Number(data['longitude']) || 0;
+    
+    // Only set address if we have meaningful data
+    if (address.latitude !== 0 || address.longitude !== 0 || 
+        address.city.length > 0 || address.country.length > 0) {
+      shelter.address = address;
     }
 
     return shelter;

@@ -7,6 +7,8 @@ import { LostService, LostFilter, LostListResult } from '../../services/LostServ
 import { LoadingView, EmptyView, ErrorView } from '../CommonViews';
 import { SearchBar } from '../SearchBar';
 import { FilterChip } from '../Chips';
+import { MapView, MapMarker } from '../MapView';
+import { MapConfig } from '../../services/ApiConfig';
 
 @Component
 export struct LostTabContent {
@@ -20,12 +22,35 @@ export struct LostTabContent {
   @State currentPage: number = 1;
   @State hasMore: boolean = true;
   @State isLoadingMore: boolean = false;
+  @State mapMarkers: MapMarker[] = [];
 
   private lostService: LostService = new LostService();
   private speciesList: string[] = ['All', 'Dog', 'Cat', 'Rabbit', 'Other'];
 
   aboutToAppear(): void {
     this.loadLostPets();
+  }
+
+  // Convert lost pets to map markers
+  private convertToMapMarkers(): void {
+    const markers: MapMarker[] = [];
+    for (let i = 0; i < this.lostPets.length; i++) {
+      const lost = this.lostPets[i];
+      if (lost.address !== null && lost.address.latitude !== 0 && lost.address.longitude !== 0) {
+        const marker = new MapMarker(
+          lost.id,
+          lost.address.latitude,
+          lost.address.longitude,
+          lost.pet_name.length > 0 ? lost.pet_name : lost.species
+        );
+        marker.description = `${lost.species} · ${lost.getStatusDisplay()}`;
+        marker.type = 'lost';
+        marker.color = lost.status === 'found' ? '#4CAF50' : '#F44336';
+        marker.imageUrl = lost.photo;
+        markers.push(marker);
+      }
+    }
+    this.mapMarkers = markers;
   }
 
   getSpeciesKey(label: string): string {
@@ -61,6 +86,7 @@ export struct LostTabContent {
     if (result.success) {
       this.lostPets = result.losts;
       this.hasMore = result.losts.length >= 10;
+      this.convertToMapMarkers();
     } else {
       this.hasError = true;
       this.errorMessage = result.errorMessage;
@@ -69,12 +95,30 @@ export struct LostTabContent {
     this.isLoading = false;
   }
 
+  // Generate Mapbox static map URL for lost pet
+  getStaticMapUrl(lost: Lost): string {
+    if (lost.address !== null && lost.address.latitude !== 0 && lost.address.longitude !== 0) {
+      const lng = lost.address.longitude;
+      const lat = lost.address.latitude;
+      const color = lost.status === 'found' ? '4CAF50' : 'F44336';
+      return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+${color}(${lng},${lat})/${lng},${lat},14,0/200x200@2x?access_token=${MapConfig.MAPBOX_TOKEN}`;
+    }
+    return '';
+  }
+
   @Builder
   LostCard(lost: Lost): void {
     Row() {
-      // Photo
+      // Photo or Static Map
       if (lost.photo.length > 0) {
         Image(lost.photo)
+          .width(100)
+          .height(100)
+          .borderRadius(10)
+          .objectFit(ImageFit.Cover)
+      } else if (lost.address !== null && lost.address.latitude !== 0) {
+        // Show static map if location available
+        Image(this.getStaticMapUrl(lost))
           .width(100)
           .height(100)
           .borderRadius(10)
@@ -125,16 +169,24 @@ export struct LostTabContent {
         }
 
         Row() {
-          Text(`📅 ${lost.lost_time.substring(0, 10)}`)
+          SymbolGlyph($r('sys.symbol.calendar'))
+            .fontSize(12)
+            .fontColor(['#BDBDBD'])
+          Text(lost.lost_time.substring(0, 10))
             .fontSize(11)
             .fontColor('#BDBDBD')
+            .margin({ left: 4 })
 
           if (lost.reward > 0) {
             Blank()
-            Text(`💰 ¥${lost.reward}`)
+            SymbolGlyph($r('sys.symbol.bag_fill'))
+              .fontSize(14)
+              .fontColor(['#4CAF50'])
+            Text(`¥${lost.reward}`)
               .fontSize(12)
               .fontColor('#4CAF50')
               .fontWeight(FontWeight.Bold)
+              .margin({ left: 2 })
           }
         }
         .width('100%')
@@ -164,52 +216,76 @@ export struct LostTabContent {
   @Builder
   ViewModeToggle(): void {
     Row() {
-      Text('📋')
-        .fontSize(18)
-        .padding(8)
-        .backgroundColor(this.viewMode === 'list' ? '#FFE0B2' : '#FFFFFF')
-        .borderRadius(8)
-        .onClick(() => {
-          this.viewMode = 'list';
-        })
+      // List view button
+      Column() {
+        SymbolGlyph($r('sys.symbol.list_bullet'))
+          .fontSize(18)
+          .fontColor([this.viewMode === 'list' ? '#F44336' : '#9E9E9E'])
+      }
+      .width(36)
+      .height(36)
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor(this.viewMode === 'list' ? '#FFEBEE' : '#FFFFFF')
+      .borderRadius(8)
+      .onClick(() => {
+        this.viewMode = 'list';
+      })
 
-      Text('🗺️')
-        .fontSize(18)
-        .padding(8)
-        .margin({ left: 4 })
-        .backgroundColor(this.viewMode === 'map' ? '#FFE0B2' : '#FFFFFF')
-        .borderRadius(8)
-        .onClick(() => {
-          this.viewMode = 'map';
-        })
+      // Map view button
+      Column() {
+        SymbolGlyph($r('sys.symbol.map'))
+          .fontSize(18)
+          .fontColor([this.viewMode === 'map' ? '#F44336' : '#9E9E9E'])
+      }
+      .width(36)
+      .height(36)
+      .justifyContent(FlexAlign.Center)
+      .margin({ left: 4 })
+      .backgroundColor(this.viewMode === 'map' ? '#FFEBEE' : '#FFFFFF')
+      .borderRadius(8)
+      .onClick(() => {
+        this.viewMode = 'map';
+      })
     }
     .padding(4)
     .backgroundColor('#F5F5F5')
-    .borderRadius(10)
+    .borderRadius(12)
   }
 
   @Builder
-  MapView(): void {
-    Column() {
-      SymbolGlyph($r('sys.symbol.map'))
-        .fontSize(48)
-        .fontColor(['#757575'])
-        .margin({ bottom: 16 })
+  LostMapView(): void {
+    if (this.mapMarkers.length === 0) {
+      Column() {
+        SymbolGlyph($r('sys.symbol.map'))
+          .fontSize(48)
+          .fontColor(['#757575'])
+          .margin({ bottom: 16 })
 
-      Text('Map View')
-        .fontSize(18)
-        .fontWeight(FontWeight.Medium)
-        .fontColor('#424242')
+        Text('No locations available')
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#424242')
 
-      Text('Coming soon...')
-        .fontSize(14)
-        .fontColor('#9E9E9E')
-        .margin({ top: 8 })
+        Text('Lost pets with location data will appear here')
+          .fontSize(14)
+          .fontColor('#9E9E9E')
+          .margin({ top: 8 })
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor('#F5F5F5')
+    } else {
+      MapView({
+        markers: this.mapMarkers,
+        centerLat: this.mapMarkers.length > 0 ? this.mapMarkers[0].latitude : 39.9042,
+        centerLng: this.mapMarkers.length > 0 ? this.mapMarkers[0].longitude : 116.4074,
+        zoom: 11,
+        mapboxToken: MapConfig.MAPBOX_TOKEN
+      })
+        .width('100%')
+        .layoutWeight(1)
     }
-    .width('100%')
-    .layoutWeight(1)
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F5F5F5')
   }
 
   build() {
@@ -275,7 +351,7 @@ export struct LostTabContent {
 
       // Content based on view mode
       if (this.viewMode === 'map') {
-        this.MapView()
+        this.LostMapView()
       } else {
         // List view
         if (this.isLoading) {
