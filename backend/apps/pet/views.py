@@ -3,7 +3,7 @@ from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, permissions, decorators, status
 from rest_framework.decorators import action
-from rest_framework.filters import OrderingFilter
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAdminUser, AllowAny, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
@@ -384,6 +384,11 @@ class ShelterViewSet(viewsets.ModelViewSet):
                 pass
         
         qs = Shelter.objects.select_related(*_valid_related)
+        
+        # 自定义搜索：按名称开头匹配
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(name__istartswith=search)
         
         # Filter by active status by default
         if self.action == 'list':
