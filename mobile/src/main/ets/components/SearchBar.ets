@@ -13,8 +13,12 @@ export struct SearchBar {
       Text('🔍')
         .fontSize(16)
         .margin({ left: 12 })
+        .onClick(() => {
+          // Click search icon to trigger search
+          this.onSearch(this.searchText);
+        })
 
-      TextInput({ text: this.searchText, placeholder: this.placeholder })
+      TextInput({ text: $$this.searchText, placeholder: this.placeholder })
         .fontSize(15)
         .fontColor('#212121')
         .placeholderColor('#BDBDBD')
@@ -22,9 +26,6 @@ export struct SearchBar {
         .layoutWeight(1)
         .height(40)
         .padding({ left: 8, right: 8 })
-        .onChange((value: string) => {
-          this.searchText = value;
-        })
         .onSubmit(() => {
           this.onSearch(this.searchText);
         })
@@ -37,6 +38,15 @@ export struct SearchBar {
           .onClick(() => {
             this.searchText = '';
             this.onSearch('');
+          })
+      } else {
+        // Search button when no text
+        Text('Search')
+          .fontSize(14)
+          .fontColor('#FF6B35')
+          .margin({ right: 12 })
+          .onClick(() => {
+            this.onSearch(this.searchText);
           })
       }
     }

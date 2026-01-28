@@ -3,9 +3,10 @@
 
 import { Pet, PetPhoto } from '../models/Pet';
 import { PetService, PetDetailResult } from '../services/PetService';
+import { TokenManager } from '../services/TokenManager';
 import { LoadingView, ErrorView } from '../components/CommonViews';
 import { TraitChip, StatusBadge } from '../components/Chips';
-import { router } from '@kit.ArkUI';
+import { router, promptAction } from '@kit.ArkUI';
 
 interface RouterParams {
   petId: number;
@@ -21,8 +22,11 @@ struct PetDetailPage {
   @State currentPhotoIndex: number = 0;
   @State showAdoptDialog: boolean = false;
   @State adoptMessage: string = '';
+  @State showLoginDialog: boolean = false;
+  @State isFavoriting: boolean = false;
 
   private petService: PetService = new PetService();
+  private tokenManager: TokenManager = TokenManager.getInstance();
   private petId: number = 0;
 
   aboutToAppear(): void {
@@ -52,10 +56,37 @@ struct PetDetailPage {
   async toggleFavorite(): Promise<void> {
     if (this.pet === null) return;
 
-    const result = await this.petService.toggleFavorite(this.pet.id);
+    // Check if user is logged in
+    if (!this.tokenManager.isLoggedIn()) {
+      this.showLoginDialog = true;
+      return;
+    }
+
+    if (this.isFavoriting) return;
+    this.isFavoriting = true;
+
+    const currentState = this.pet.is_favorited;
+    const result = await this.petService.toggleFavorite(this.pet.id, currentState);
     if (result.success && this.pet !== null) {
       this.pet.is_favorited = result.is_favorited;
+      // Show feedback
+      promptAction.showToast({
+        message: result.is_favorited ? 'Added to favorites' : 'Removed from favorites',
+        duration: 2000
+      });
+    } else {
+      promptAction.showToast({
+        message: result.errorMessage || 'Failed to update favorite',
+        duration: 2000
+      });
     }
+
+    this.isFavoriting = false;
+  }
+
+  goToLogin(): void {
+    this.showLoginDialog = false;
+    router.pushUrl({ url: 'pages/LoginPage' });
   }
 
   getAllPhotos(): string[] {
@@ -369,6 +400,11 @@ struct PetDetailPage {
             .width('90%')
             .height(48)
             .onClick(() => {
+              // Check if user is logged in
+              if (!this.tokenManager.isLoggedIn()) {
+                this.showLoginDialog = true;
+                return;
+              }
               router.pushUrl({
                 url: 'pages/AdoptionFormPage',
                 params: { petId: this.pet?.id, petName: this.pet?.name }
@@ -390,5 +426,58 @@ struct PetDetailPage {
     .width('100%')
     .height('100%')
     .backgroundColor('#F5F5F5')
+    // Login dialog
+    .bindSheet($$this.showLoginDialog, this.LoginDialogBuilder(), {
+      height: SheetSize.FIT_CONTENT,
+      backgroundColor: '#FFFFFF',
+      showClose: true,
+      dragBar: true,
+      blurStyle: BlurStyle.COMPONENT_THICK
+    })
+  }
+
+  @Builder
+  LoginDialogBuilder() {
+    Column() {
+      Text('🔐')
+        .fontSize(48)
+        .margin({ bottom: 16 })
+
+      Text('Please Login First')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#212121')
+        .margin({ bottom: 8 })
+
+      Text('You need to login to add pets to your favorites.')
+        .fontSize(14)
+        .fontColor('#757575')
+        .textAlign(TextAlign.Center)
+        .margin({ bottom: 24 })
+
+      Button('Login Now')
+        .width('100%')
+        .height(44)
+        .fontSize(16)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#FF6B35')
+        .borderRadius(22)
+        .onClick(() => {
+          this.goToLogin();
+        })
+
+      Button('Cancel')
+        .width('100%')
+        .height(44)
+        .fontSize(16)
+        .fontColor('#757575')
+        .backgroundColor(Color.Transparent)
+        .margin({ top: 8 })
+        .onClick(() => {
+          this.showLoginDialog = false;
+        })
+    }
+    .width('100%')
+    .padding({ left: 24, right: 24, top: 32, bottom: 32 })
   }
 }

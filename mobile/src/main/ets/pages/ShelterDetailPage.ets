@@ -1,4 +1,4 @@
-// Shelter Detail Page - Full shelter information with map
+// Shelter Detail Page - Full shelter information with dynamic map
 import { router } from '@kit.ArkUI';
 import { Shelter } from '../models/Pet';
 import { ShelterService, ShelterDetailResult } from '../services/ShelterService';
@@ -9,6 +9,9 @@ interface RouterParams {
   shelterId: number;
 }
 
+// Tab type for switching views
+type ShelterTab = 'info' | 'map';
+
 @Entry
 @Component
 struct ShelterDetailPage {
@@ -16,16 +19,10 @@ struct ShelterDetailPage {
   @State isLoading: boolean = true;
   @State hasError: boolean = false;
   @State errorMessage: string = '';
-  @State showFullMap: boolean = false;
+  @State currentTab: ShelterTab = 'info';  // 默认显示信息页
 
   private shelterService: ShelterService = new ShelterService();
   private shelterId: number = 0;
-
-  // Generate static map URL for preview (WebView doesn't work well inside Scroll)
-  getStaticMapUrl(lat: number, lng: number, width: number = 400, height: number = 200): string {
-    const marker = `pin-l+4CAF50(${lng},${lat})`;
-    return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${marker}/${lng},${lat},14,0/${width}x${height}@2x?access_token=${MapConfig.MAPBOX_TOKEN}`;
-  }
 
   aboutToAppear(): void {
     const params = router.getParams() as RouterParams;
@@ -114,109 +111,131 @@ struct ShelterDetailPage {
   }
 
   build() {
-    Stack() {
-      Column() {
-        // Header
-        Row() {
-          SymbolGlyph($r('sys.symbol.chevron_left'))
-            .fontSize(24)
-            .fontColor(['#424242'])
-            .onClick(() => { router.back(); })
-          Text('Shelter Details')
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .margin({ left: 16 })
-            .layoutWeight(1)
-          if (this.shelter !== null && this.shelter.is_verified) {
-            Row() {
-              SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
-                .fontSize(16)
-                .fontColor(['#4CAF50'])
-              Text('Verified')
-                .fontSize(12)
-                .fontColor('#4CAF50')
-                .margin({ left: 4 })
-            }
+    Column() {
+      // Header
+      Row() {
+        SymbolGlyph($r('sys.symbol.chevron_left'))
+          .fontSize(24)
+          .fontColor(['#424242'])
+          .onClick(() => { router.back(); })
+        Text('Shelter Details')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .margin({ left: 16 })
+          .layoutWeight(1)
+        if (this.shelter !== null && this.shelter.is_verified) {
+          Row() {
+            SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+              .fontSize(16)
+              .fontColor(['#4CAF50'])
+            Text('Verified')
+              .fontSize(12)
+              .fontColor('#4CAF50')
+              .margin({ left: 4 })
           }
         }
-        .width('100%')
-        .padding(16)
-        .backgroundColor('#FFFFFF')
+      }
+      .width('100%')
+      .padding(16)
+      .backgroundColor('#FFFFFF')
 
-        if (this.isLoading) {
+      if (this.isLoading) {
+        Column() {
+          LoadingProgress()
+            .width(40)
+            .height(40)
+            .color('#4CAF50')
+          Text('Loading...')
+            .fontSize(14)
+            .fontColor('#757575')
+            .margin({ top: 12 })
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.hasError) {
+        Column() {
+          SymbolGlyph($r('sys.symbol.exclamationmark_triangle'))
+            .fontSize(48)
+            .fontColor(['#F44336'])
+          Text(this.errorMessage)
+            .fontSize(14)
+            .fontColor('#757575')
+            .margin({ top: 12 })
+          Button('Retry')
+            .fontSize(14)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#4CAF50')
+            .borderRadius(20)
+            .margin({ top: 16 })
+            .onClick(() => { this.loadShelterDetail(); })
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.shelter !== null) {
+        // Tab switcher - Info / Map
+        Row() {
+          // Info Tab
           Column() {
-            LoadingProgress()
-              .width(40)
-              .height(40)
-              .color('#4CAF50')
-            Text('Loading...')
+            Text('Info')
               .fontSize(14)
-              .fontColor('#757575')
-              .margin({ top: 12 })
+              .fontWeight(this.currentTab === 'info' ? FontWeight.Bold : FontWeight.Normal)
+              .fontColor(this.currentTab === 'info' ? '#4CAF50' : '#757575')
+            if (this.currentTab === 'info') {
+              Row()
+                .width(40)
+                .height(3)
+                .backgroundColor('#4CAF50')
+                .borderRadius(2)
+                .margin({ top: 8 })
+            }
           }
-          .width('100%')
           .layoutWeight(1)
-          .justifyContent(FlexAlign.Center)
-        } else if (this.hasError) {
+          .padding({ top: 12, bottom: 8 })
+          .onClick(() => { this.currentTab = 'info'; })
+
+          // Map Tab
           Column() {
-            SymbolGlyph($r('sys.symbol.exclamationmark_triangle'))
-              .fontSize(48)
-              .fontColor(['#F44336'])
-            Text(this.errorMessage)
-              .fontSize(14)
-              .fontColor('#757575')
-              .margin({ top: 12 })
-            Button('Retry')
-              .fontSize(14)
-              .fontColor('#FFFFFF')
-              .backgroundColor('#4CAF50')
-              .borderRadius(20)
-              .margin({ top: 16 })
-              .onClick(() => { this.loadShelterDetail(); })
+            Row() {
+              SymbolGlyph($r('sys.symbol.map'))
+                .fontSize(16)
+                .fontColor([this.currentTab === 'map' ? '#4CAF50' : '#757575'])
+                .margin({ right: 4 })
+              Text('Map')
+                .fontSize(14)
+                .fontWeight(this.currentTab === 'map' ? FontWeight.Bold : FontWeight.Normal)
+                .fontColor(this.currentTab === 'map' ? '#4CAF50' : '#757575')
+            }
+            if (this.currentTab === 'map') {
+              Row()
+                .width(40)
+                .height(3)
+                .backgroundColor('#4CAF50')
+                .borderRadius(2)
+                .margin({ top: 8 })
+            }
           }
-          .width('100%')
           .layoutWeight(1)
-          .justifyContent(FlexAlign.Center)
-        } else if (this.shelter !== null) {
+          .padding({ top: 12, bottom: 8 })
+          .onClick(() => { this.currentTab = 'map'; })
+        }
+        .width('100%')
+        .backgroundColor('#FFFFFF')
+        .borderWidth({ bottom: 1 })
+        .borderColor('#F0F0F0')
+
+        // Content based on current tab
+        if (this.currentTab === 'info') {
+          // Info content
           Scroll() {
             Column() {
-              // Cover image or Map preview (use static map - WebView doesn't work in Scroll)
+              // Cover image
               if (this.shelter.cover_image.length > 0) {
                 Image(this.shelter.cover_image)
                   .width('100%')
                   .height(200)
                   .objectFit(ImageFit.Cover)
-              } else if (this.shelter.address !== null && this.shelter.address.latitude !== 0) {
-                // Show static map preview - click to open interactive map
-                Stack() {
-                  Image(this.getStaticMapUrl(this.shelter.address.latitude, this.shelter.address.longitude))
-                    .width('100%')
-                    .height(200)
-                    .objectFit(ImageFit.Cover)
-                  // Overlay hint
-                  Column() {
-                    Row() {
-                      SymbolGlyph($r('sys.symbol.arrow_up_left_and_arrow_down_right'))
-                        .fontSize(16)
-                        .fontColor(['#FFFFFF'])
-                      Text('Tap for interactive map')
-                        .fontSize(12)
-                        .fontColor('#FFFFFF')
-                        .margin({ left: 6 })
-                    }
-                    .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-                    .backgroundColor('#80000000')
-                    .borderRadius(16)
-                  }
-                  .width('100%')
-                  .height('100%')
-                  .justifyContent(FlexAlign.End)
-                  .alignItems(HorizontalAlign.End)
-                  .padding({ right: 12, bottom: 12 })
-                }
-                .width('100%')
-                .height(200)
-                .onClick(() => { this.showFullMap = true; })
               } else {
                 Column() {
                   SymbolGlyph($r('sys.symbol.house_fill'))
@@ -224,7 +243,7 @@ struct ShelterDetailPage {
                     .fontColor(['#4CAF50'])
                 }
                 .width('100%')
-                .height(200)
+                .height(160)
                 .backgroundColor('#E8F5E9')
                 .justifyContent(FlexAlign.Center)
               }
@@ -315,7 +334,7 @@ struct ShelterDetailPage {
               .borderRadius(12)
               .alignItems(HorizontalAlign.Start)
 
-              // Location map section (static image preview)
+              // Quick map preview - tap to switch to map tab
               if (this.shelter.address !== null && this.shelter.address.latitude !== 0) {
                 Column() {
                   Row() {
@@ -325,26 +344,35 @@ struct ShelterDetailPage {
                       .fontColor('#212121')
                     Blank()
                     Row() {
-                      SymbolGlyph($r('sys.symbol.arrow_up_left_and_arrow_down_right'))
+                      SymbolGlyph($r('sys.symbol.map'))
                         .fontSize(14)
                         .fontColor(['#4CAF50'])
-                      Text('View Full Map')
+                      Text('View Interactive Map')
                         .fontSize(13)
                         .fontColor('#4CAF50')
                         .margin({ left: 4 })
                     }
-                    .onClick(() => { this.showFullMap = true; })
+                    .onClick(() => { this.currentTab = 'map'; })
                   }
                   .width('100%')
                   .margin({ bottom: 12 })
 
-                  // Static map preview
-                  Image(this.getStaticMapUrl(this.shelter.address.latitude, this.shelter.address.longitude, 600, 200))
-                    .width('100%')
-                    .height(180)
-                    .objectFit(ImageFit.Cover)
-                    .borderRadius(12)
-                    .onClick(() => { this.showFullMap = true; })
+                  // Address display
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.map'))
+                      .fontSize(20)
+                      .fontColor(['#4CAF50'])
+                      .margin({ right: 8 })
+                    Text(this.shelter.address.getFullAddress())
+                      .fontSize(14)
+                      .fontColor('#424242')
+                      .layoutWeight(1)
+                  }
+                  .width('100%')
+                  .padding(12)
+                  .backgroundColor('#F5F5F5')
+                  .borderRadius(8)
+                  .onClick(() => { this.currentTab = 'map'; })
                 }
                 .width('100%')
                 .padding(16)
@@ -362,33 +390,72 @@ struct ShelterDetailPage {
           .width('100%')
           .layoutWeight(1)
           .scrollBar(BarState.Off)
-
-          // Bottom action buttons
-          Row({ space: 12 }) {
-            if (this.shelter.phone.length > 0) {
-              Button() {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.phone_fill'))
-                    .fontSize(18)
-                    .fontColor(['#FFFFFF'])
-                  Text('Call')
-                    .fontSize(15)
-                    .fontColor('#FFFFFF')
-                    .margin({ left: 8 })
-                }
+        } else {
+          // Map content - Dynamic MapView
+          if (this.shelter.address !== null && this.shelter.address.latitude !== 0) {
+            Column() {
+              // Map info bar
+              Row() {
+                SymbolGlyph($r('sys.symbol.map'))
+                  .fontSize(16)
+                  .fontColor(['#4CAF50'])
+                  .margin({ right: 8 })
+                Text(this.shelter.address.getFullAddress())
+                  .fontSize(13)
+                  .fontColor('#424242')
+                  .layoutWeight(1)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
               }
-              .layoutWeight(1)
-              .height(48)
-              .backgroundColor('#4CAF50')
-              .borderRadius(24)
-            }
+              .width('100%')
+              .padding(12)
+              .backgroundColor('#FFFFFF')
+              .borderWidth({ bottom: 1 })
+              .borderColor('#F0F0F0')
 
+              // Dynamic MapView
+              MapView({
+                markers: this.getMapMarker(),
+                centerLat: this.shelter.address.latitude,
+                centerLng: this.shelter.address.longitude,
+                zoom: 15,
+                mapboxToken: MapConfig.MAPBOX_TOKEN
+              })
+                .width('100%')
+                .layoutWeight(1)
+            }
+            .width('100%')
+            .layoutWeight(1)
+          } else {
+            // No location available
+            Column() {
+              SymbolGlyph($r('sys.symbol.map'))
+                .fontSize(48)
+                .fontColor(['#BDBDBD'])
+              Text('No location data')
+                .fontSize(16)
+                .fontColor('#757575')
+                .margin({ top: 12 })
+              Text('This shelter has not provided location information')
+                .fontSize(13)
+                .fontColor('#9E9E9E')
+                .margin({ top: 4 })
+            }
+            .width('100%')
+            .layoutWeight(1)
+            .justifyContent(FlexAlign.Center)
+          }
+        }
+
+        // Bottom action buttons
+        Row({ space: 12 }) {
+          if (this.shelter.phone.length > 0) {
             Button() {
               Row() {
-                SymbolGlyph($r('sys.symbol.heart_fill'))
+                SymbolGlyph($r('sys.symbol.phone_fill'))
                   .fontSize(18)
                   .fontColor(['#FFFFFF'])
-                Text('Donate')
+                Text('Call')
                   .fontSize(15)
                   .fontColor('#FFFFFF')
                   .margin({ left: 8 })
@@ -396,64 +463,41 @@ struct ShelterDetailPage {
             }
             .layoutWeight(1)
             .height(48)
-            .backgroundColor('#FF6B35')
+            .backgroundColor('#4CAF50')
             .borderRadius(24)
-            .onClick(() => {
-              try {
-                router.pushUrl({ url: 'pages/DonationFormPage' });
-              } catch (err) {
-                console.error('Navigation error', JSON.stringify(err));
-              }
-            })
           }
-          .width('100%')
-          .padding(16)
-          .backgroundColor('#FFFFFF')
-          .shadow({ radius: 8, color: '#1A000000', offsetX: 0, offsetY: -2 })
-        }
-      }
-      .width('100%')
-      .height('100%')
-      .backgroundColor('#F5F5F5')
 
-      // Full screen map overlay
-      if (this.showFullMap && this.shelter !== null && this.shelter.address !== null) {
-        Column() {
-          // Map header
-          Row() {
-            SymbolGlyph($r('sys.symbol.xmark'))
-              .fontSize(24)
-              .fontColor(['#424242'])
-              .onClick(() => { this.showFullMap = false; })
-            Text(this.shelter.name)
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .margin({ left: 16 })
-              .layoutWeight(1)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Button() {
+            Row() {
+              SymbolGlyph($r('sys.symbol.heart_fill'))
+                .fontSize(18)
+                .fontColor(['#FFFFFF'])
+              Text('Donate')
+                .fontSize(15)
+                .fontColor('#FFFFFF')
+                .margin({ left: 8 })
+            }
           }
-          .width('100%')
-          .padding(16)
-          .backgroundColor('#FFFFFF')
-
-          // Full map
-          MapView({
-            markers: this.getMapMarker(),
-            centerLat: this.shelter.address.latitude,
-            centerLng: this.shelter.address.longitude,
-            zoom: 15,
-            mapboxToken: MapConfig.MAPBOX_TOKEN
+          .layoutWeight(1)
+          .height(48)
+          .backgroundColor('#FF6B35')
+          .borderRadius(24)
+          .onClick(() => {
+            try {
+              router.pushUrl({ url: 'pages/DonationFormPage' });
+            } catch (err) {
+              console.error('Navigation error', JSON.stringify(err));
+            }
           })
-            .width('100%')
-            .layoutWeight(1)
         }
         .width('100%')
-        .height('100%')
+        .padding(16)
         .backgroundColor('#FFFFFF')
+        .shadow({ radius: 8, color: '#1A000000', offsetX: 0, offsetY: -2 })
       }
     }
     .width('100%')
     .height('100%')
+    .backgroundColor('#F5F5F5')
   }
 }

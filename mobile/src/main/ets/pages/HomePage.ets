@@ -5,11 +5,12 @@ import { Pet } from '../models/Pet';
 import { Lost } from '../models/Lost';
 import { PetService, PetFilter, PetListResult } from '../services/PetService';
 import { LostService, LostFilter, LostListResult } from '../services/LostService';
+import { TokenManager } from '../services/TokenManager';
 import { PetCard } from '../components/PetCard';
 import { LoadingView, EmptyView, ErrorView } from '../components/CommonViews';
 import { SearchBar } from '../components/SearchBar';
 import { FilterChip } from '../components/Chips';
-import { router } from '@kit.ArkUI';
+import { router, promptAction } from '@kit.ArkUI';
 
 @Entry
 @Component
@@ -30,9 +31,11 @@ struct HomePage {
   @State isLoadingLost: boolean = false;
   @State hasErrorLost: boolean = false;
   @State errorMessageLost: string = '';
+  @State showLoginDialog: boolean = false;
 
   private petService: PetService = new PetService();
   private lostService: LostService = new LostService();
+  private tokenManager: TokenManager = TokenManager.getInstance();
   private speciesList: string[] = ['All', 'Dog', 'Cat', 'Rabbit', 'Bird', 'Other'];
   private tabController: TabsController = new TabsController();
 
@@ -114,12 +117,34 @@ struct HomePage {
   }
 
   async toggleFavorite(pet: Pet, index: number): Promise<void> {
-    const result = await this.petService.toggleFavorite(pet.id);
-    if (result.success) {
-      const updatedPet = this.pets[index];
-      updatedPet.is_favorited = result.is_favorited;
-      this.pets[index] = updatedPet;
+    // Check if user is logged in
+    if (!this.tokenManager.isLoggedIn()) {
+      this.showLoginDialog = true;
+      return;
     }
+
+    const currentState = pet.is_favorited;
+    const result = await this.petService.toggleFavorite(pet.id, currentState);
+    if (result.success) {
+      // Create a new array to trigger UI update
+      const newPets = [...this.pets];
+      newPets[index].is_favorited = result.is_favorited;
+      this.pets = newPets;
+      promptAction.showToast({
+        message: result.is_favorited ? 'Added to favorites' : 'Removed from favorites',
+        duration: 2000
+      });
+    } else {
+      promptAction.showToast({
+        message: result.errorMessage || 'Failed to update favorite',
+        duration: 2000
+      });
+    }
+  }
+
+  goToLogin(): void {
+    this.showLoginDialog = false;
+    router.pushUrl({ url: 'pages/LoginPage' });
   }
 
   navigateToPetDetail(pet: Pet): void {
@@ -516,5 +541,58 @@ struct HomePage {
     })
     .width('100%')
     .height('100%')
+    // Login dialog
+    .bindSheet($$this.showLoginDialog, this.LoginDialogBuilder(), {
+      height: SheetSize.FIT_CONTENT,
+      backgroundColor: '#FFFFFF',
+      showClose: true,
+      dragBar: true,
+      blurStyle: BlurStyle.COMPONENT_THICK
+    })
+  }
+
+  @Builder
+  LoginDialogBuilder() {
+    Column() {
+      Text('🔐')
+        .fontSize(48)
+        .margin({ bottom: 16 })
+
+      Text('Please Login First')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#212121')
+        .margin({ bottom: 8 })
+
+      Text('You need to login to add pets to your favorites.')
+        .fontSize(14)
+        .fontColor('#757575')
+        .textAlign(TextAlign.Center)
+        .margin({ bottom: 24 })
+
+      Button('Login Now')
+        .width('100%')
+        .height(44)
+        .fontSize(16)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#FF6B35')
+        .borderRadius(22)
+        .onClick(() => {
+          this.goToLogin();
+        })
+
+      Button('Cancel')
+        .width('100%')
+        .height(44)
+        .fontSize(16)
+        .fontColor('#757575')
+        .backgroundColor(Color.Transparent)
+        .margin({ top: 8 })
+        .onClick(() => {
+          this.showLoginDialog = false;
+        })
+    }
+    .width('100%')
+    .padding({ left: 24, right: 24, top: 32, bottom: 32 })
   }
 }

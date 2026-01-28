@@ -1,7 +1,7 @@
 // Pet API Service
 // Following ArkTS strict typing rules
 
-import { HttpClient } from './HttpClient';
+import { HttpClient, HttpResponse } from './HttpClient';
 import { ApiConfig, ApiEndpoints } from './ApiConfig';
 import { Pet, PetPhoto, Address, UserBasic, Shelter } from '../models/index';
 
@@ -120,18 +120,27 @@ export class PetService {
     return result;
   }
 
-  async toggleFavorite(petId: number): Promise<PetFavoriteResult> {
+  async toggleFavorite(petId: number, currentlyFavorited: boolean): Promise<PetFavoriteResult> {
     const result = new PetFavoriteResult();
     const params = new Map<string, string>();
     params.set('id', petId.toString());
-    const url = ApiConfig.buildUrl(ApiEndpoints.PET_FAVORITE, params);
 
     try {
-      const response = await this.httpClient.post(url, '{}', true);
+      let response: HttpResponse;
+      if (currentlyFavorited) {
+        // Currently favorited, so unfavorite it
+        const url = ApiConfig.buildUrl(ApiEndpoints.PET_UNFAVORITE, params);
+        response = await this.httpClient.delete(url, true);
+      } else {
+        // Not favorited, so add to favorites
+        const url = ApiConfig.buildUrl(ApiEndpoints.PET_FAVORITE, params);
+        response = await this.httpClient.post(url, '{}', true);
+      }
 
       if (response.success) {
         const parsed = JSON.parse(response.data) as Record<string, Object>;
-        result.is_favorited = Boolean(parsed['is_favorited']);
+        // Backend returns 'favorited' not 'is_favorited'
+        result.is_favorited = Boolean(parsed['favorited']);
         result.success = true;
       } else {
         result.errorMessage = this.parseErrorMessage(response.data);

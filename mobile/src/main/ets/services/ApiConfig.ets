@@ -16,6 +16,7 @@ export class ApiEndpoints {
   static readonly PETS: string = 'pet/';
   static readonly PET_DETAIL: string = 'pet/{id}/';
   static readonly PET_FAVORITE: string = 'pet/{id}/favorite/';
+  static readonly PET_UNFAVORITE: string = 'pet/{id}/unfavorite/';
 
   // Adoption endpoints
   static readonly ADOPTIONS: string = 'pet/adoption/';
@@ -41,7 +42,7 @@ export class ApiEndpoints {
 export class ApiConfig {
   // Base URL - change this to your backend server address
   // Use your computer's actual IP address for device/emulator access
-  static readonly BASE_URL: string = 'http://172.20.10.12:8000/';
+  static readonly BASE_URL: string = 'http://192.168.123.237:8000/';
 
   // Request timeout in milliseconds
   static readonly TIMEOUT: number = 30000;

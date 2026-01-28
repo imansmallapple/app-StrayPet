@@ -7,15 +7,21 @@ import { SearchBar } from '../components/SearchBar';
 import { Shelter } from '../models/index';
 import { ShelterService, ShelterFilter } from '../services/ShelterService';
 import { MapConfig } from '../services/ApiConfig';
+import { MapView, MapMarker } from '../components/MapView';
+
+// View mode type
+type ViewMode = 'list' | 'map';
 
 @Entry
 @Component
 struct ShelterListPage {
   @State shelters: Shelter[] = [];
+  @State mapMarkers: MapMarker[] = [];
   @State isLoading: boolean = true;
   @State hasError: boolean = false;
   @State errorMessage: string = '';
   @State searchText: string = '';
+  @State viewMode: ViewMode = 'list';  // 默认列表视图
   private shelterService: ShelterService = new ShelterService();
 
   aboutToAppear(): void {
@@ -35,12 +41,34 @@ struct ShelterListPage {
 
     if (result.success) {
       this.shelters = result.shelters;
+      this.convertToMapMarkers();
     } else {
       this.hasError = true;
       this.errorMessage = result.errorMessage;
     }
 
     this.isLoading = false;
+  }
+
+  // Convert shelters to map markers
+  private convertToMapMarkers(): void {
+    const markers: MapMarker[] = [];
+    for (let i = 0; i < this.shelters.length; i++) {
+      const shelter = this.shelters[i];
+      if (shelter.address !== null && shelter.address.latitude !== 0 && shelter.address.longitude !== 0) {
+        const marker = new MapMarker(
+          shelter.id,
+          shelter.address.latitude,
+          shelter.address.longitude,
+          shelter.name
+        );
+        marker.description = shelter.is_verified ? '✓ Verified' : 'Shelter';
+        marker.type = 'shelter';
+        marker.color = shelter.is_verified ? '#4CAF50' : '#FF6B35';
+        markers.push(marker);
+      }
+    }
+    this.mapMarkers = markers;
   }
 
   getOccupancyRate(shelter: Shelter): number {
@@ -183,22 +211,54 @@ struct ShelterListPage {
           .fontWeight(FontWeight.Bold)
           .fontColor('#4CAF50')
           .margin({ left: 8 })
+          .layoutWeight(1)
+
+        // View mode toggle
+        Row({ space: 8 }) {
+          // List view button
+          Row() {
+            SymbolGlyph($r('sys.symbol.list_bullet'))
+              .fontSize(18)
+              .fontColor([this.viewMode === 'list' ? '#4CAF50' : '#9E9E9E'])
+          }
+          .width(36)
+          .height(36)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(this.viewMode === 'list' ? '#E8F5E9' : '#F5F5F5')
+          .borderRadius(8)
+          .onClick(() => { this.viewMode = 'list'; })
+
+          // Map view button
+          Row() {
+            SymbolGlyph($r('sys.symbol.map'))
+              .fontSize(18)
+              .fontColor([this.viewMode === 'map' ? '#4CAF50' : '#9E9E9E'])
+          }
+          .width(36)
+          .height(36)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(this.viewMode === 'map' ? '#E8F5E9' : '#F5F5F5')
+          .borderRadius(8)
+          .onClick(() => { this.viewMode = 'map'; })
+        }
       }
       .width('100%')
       .padding({ left: 8, right: 16, top: 12, bottom: 12 })
 
-      // Search
-      Row() {
-        SearchBar({
-          searchText: $searchText,
-          placeholder: 'Search shelters...',
-          onSearch: () => {
-            this.loadShelters();
-          }
-        })
+      // Search (only show in list mode)
+      if (this.viewMode === 'list') {
+        Row() {
+          SearchBar({
+            searchText: $searchText,
+            placeholder: 'Search shelters...',
+            onSearch: () => {
+              this.loadShelters();
+            }
+          })
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16 })
       }
-      .width('100%')
-      .padding({ left: 16, right: 16 })
 
       // Content
       if (this.isLoading) {
@@ -218,7 +278,8 @@ struct ShelterListPage {
           subtitle: 'Check back later'
         })
           .layoutWeight(1)
-      } else {
+      } else if (this.viewMode === 'list') {
+        // List View
         List({ space: 16 }) {
           ForEach(this.shelters, (shelter: Shelter) => {
             ListItem() {
@@ -229,6 +290,64 @@ struct ShelterListPage {
         }
         .layoutWeight(1)
         .padding({ top: 16, bottom: 16 })
+      } else {
+        // Map View
+        Column() {
+          if (this.mapMarkers.length === 0) {
+            // No locations available
+            Column() {
+              SymbolGlyph($r('sys.symbol.map'))
+                .fontSize(48)
+                .fontColor(['#BDBDBD'])
+              Text('No location data')
+                .fontSize(16)
+                .fontColor('#757575')
+                .margin({ top: 12 })
+              Text('Shelters with location will appear on the map')
+                .fontSize(13)
+                .fontColor('#9E9E9E')
+                .margin({ top: 4 })
+                .textAlign(TextAlign.Center)
+            }
+            .width('100%')
+            .layoutWeight(1)
+            .justifyContent(FlexAlign.Center)
+            .padding(32)
+          } else {
+            // Dynamic Map
+            MapView({
+              markers: this.mapMarkers,
+              centerLat: this.mapMarkers.length > 0 ? this.mapMarkers[0].latitude : MapConfig.DEFAULT_LAT,
+              centerLng: this.mapMarkers.length > 0 ? this.mapMarkers[0].longitude : MapConfig.DEFAULT_LNG,
+              zoom: 11,
+              mapboxToken: MapConfig.MAPBOX_TOKEN
+            })
+              .width('100%')
+              .layoutWeight(1)
+          }
+
+          // Bottom info bar
+          Row() {
+            SymbolGlyph($r('sys.symbol.info_circle'))
+              .fontSize(14)
+              .fontColor(['#9E9E9E'])
+              .margin({ right: 6 })
+            Text(`${this.mapMarkers.length} shelters on map`)
+              .fontSize(13)
+              .fontColor('#757575')
+            Blank()
+            Text(`${this.shelters.length} total`)
+              .fontSize(13)
+              .fontColor('#9E9E9E')
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+          .backgroundColor('#FFFFFF')
+          .borderWidth({ top: 1 })
+          .borderColor('#F0F0F0')
+        }
+        .width('100%')
+        .layoutWeight(1)
       }
     }
     .width('100%')
