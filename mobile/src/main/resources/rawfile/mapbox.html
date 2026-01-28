@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Mapbox Map</title>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.2/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.2/mapbox-gl.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    #map { width: 100%; height: 100%; }
+    .loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #757575;
+      font-size: 14px;
+      z-index: 1000;
+    }
+    .loading.hidden { display: none; }
+    .error {
+      color: #f44336;
+      text-align: center;
+      padding: 20px;
+    }
+    .mapboxgl-popup-content {
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .mapboxgl-popup-content strong {
+      color: #212121;
+      font-size: 14px;
+    }
+    .mapboxgl-popup-content .desc {
+      color: #757575;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">Loading map...</div>
+  <div id="map"></div>
+
+  <script>
+    // 全局变量
+    var map = null;
+    var markers = [];
+    var mapConfig = {
+      token: '',
+      center: [116.4074, 39.9042],
+      zoom: 10
+    };
+
+    // 初始化地图 - 由原生代码调用
+    function initMap(token, centerLng, centerLat, zoom) {
+      console.log('[Map] initMap called');
+      mapConfig.token = token;
+      mapConfig.center = [centerLng, centerLat];
+      mapConfig.zoom = zoom;
+
+      try {
+        if (typeof mapboxgl === 'undefined') {
+          throw new Error('Mapbox GL JS not loaded');
+        }
+
+        mapboxgl.accessToken = token;
+
+        if (!mapboxgl.supported()) {
+          throw new Error('WebGL not supported');
+        }
+
+        map = new mapboxgl.Map({
+          container: 'map',
+          style: 'mapbox://styles/mapbox/streets-v12',
+          center: mapConfig.center,
+          zoom: mapConfig.zoom
+        });
+
+        // 添加导航控件
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+        map.on('load', function() {
+          console.log('[Map] Map loaded successfully');
+          document.getElementById('loading').classList.add('hidden');
+        });
+
+        map.on('error', function(e) {
+          console.error('[Map] Error:', e.error ? e.error.message : 'Unknown');
+        });
+
+        // 超时检测
+        setTimeout(function() {
+          var loading = document.getElementById('loading');
+          if (loading && !loading.classList.contains('hidden')) {
+            loading.innerHTML = 'Loading slow... Check network';
+          }
+        }, 8000);
+
+        return 'success';
+      } catch (err) {
+        console.error('[Map] Init error:', err.message);
+        document.getElementById('loading').innerHTML = '<div class="error">' + err.message + '</div>';
+        return 'error: ' + err.message;
+      }
+    }
+
+    // 添加单个标记
+    function addMarker(id, lng, lat, title, description, color) {
+      if (!map) {
+        console.warn('[Map] Map not initialized');
+        return;
+      }
+
+      var popupHtml = '<strong>' + title + '</strong>';
+      if (description && description.length > 0) {
+        popupHtml += '<div class="desc">' + description + '</div>';
+      }
+
+      var marker = new mapboxgl.Marker({ color: color || '#FF6B35' })
+        .setLngLat([lng, lat])
+        .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(popupHtml))
+        .addTo(map);
+
+      markers.push({ id: id, marker: marker });
+      console.log('[Map] Marker added:', id, title);
+    }
+
+    // 添加多个标记（JSON字符串）
+    function addMarkers(markersJson) {
+      if (!map) {
+        console.warn('[Map] Map not initialized');
+        return;
+      }
+
+      try {
+        var data = JSON.parse(markersJson);
+        for (var i = 0; i < data.length; i++) {
+          var m = data[i];
+          addMarker(m.id, m.longitude, m.latitude, m.title, m.description || '', m.color || '#FF6B35');
+        }
+
+        // 如果有多个标记，自动调整视野
+        if (data.length > 1) {
+          var bounds = new mapboxgl.LngLatBounds();
+          for (var j = 0; j < data.length; j++) {
+            bounds.extend([data[j].longitude, data[j].latitude]);
+          }
+          map.fitBounds(bounds, { padding: 50 });
+        }
+      } catch (e) {
+        console.error('[Map] Parse markers error:', e.message);
+      }
+    }
+
+    // 清除所有标记
+    function clearMarkers() {
+      for (var i = 0; i < markers.length; i++) {
+        markers[i].marker.remove();
+      }
+      markers = [];
+      console.log('[Map] All markers cleared');
+    }
+
+    // 飞行到指定位置
+    function flyTo(lng, lat, zoom) {
+      if (!map) return;
+      map.flyTo({
+        center: [lng, lat],
+        zoom: zoom || 14,
+        essential: true
+      });
+    }
+
+    // 设置中心点
+    function setCenter(lng, lat) {
+      if (!map) return;
+      map.setCenter([lng, lat]);
+    }
+
+    // 设置缩放级别
+    function setZoom(zoom) {
+      if (!map) return;
+      map.setZoom(zoom);
+    }
+
+    // 获取地图状态
+    function getMapStatus() {
+      return JSON.stringify({
+        initialized: !!map,
+        center: map ? map.getCenter() : null,
+        zoom: map ? map.getZoom() : null,
+        markerCount: markers.length
+      });
+    }
+
+    // 页面加载完成后发送就绪消息
+    window.onload = function() {
+      console.log('[Map] Page ready, waiting for initMap call');
+    };
+  </script>
+</body>
+</html>
