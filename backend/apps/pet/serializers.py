@@ -249,7 +249,8 @@ class PetListSerializer(serializers.ModelSerializer):
     # provide numeric coordinates for frontend map (fallback: address -> location)
     address_lat = serializers.SerializerMethodField()
     address_lon = serializers.SerializerMethodField()
-    photo = serializers.ImageField(source='cover', read_only=True)
+    cover = serializers.SerializerMethodField()  # 封面照片 URL
+    photo = serializers.SerializerMethodField()  # 别名，同 cover
     photos = serializers.SerializerMethodField()  # 多张照片数组
     is_favorited = serializers.SerializerMethodField()
     favorites_count = serializers.IntegerField(source='favorites.count', read_only=True)
@@ -277,6 +278,19 @@ class PetListSerializer(serializers.ModelSerializer):
             "shelter_id", "shelter_name", "shelter_address", "shelter_phone", "shelter_website", "shelter_description",
         )
         read_only_fields = ("status", "created_by", "applications_count", "add_date", "pub_date")
+
+    def get_cover(self, obj: Pet) -> str:
+        """返回封面照片的绝对 URL"""
+        if not obj.cover:
+            return ''
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.cover.url)
+        return obj.cover.url
+
+    def get_photo(self, obj: Pet) -> str:
+        """photo 字段是 cover 的别名"""
+        return self.get_cover(obj)
 
     def get_photos(self, obj: Pet):
         """返回所有额外照片的 URL"""
