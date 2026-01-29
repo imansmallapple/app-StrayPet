@@ -1,5 +1,6 @@
 // Shelter Detail Page - Full shelter information with dynamic map
 import { router } from '@kit.ArkUI';
+import { common, Want } from '@kit.AbilityKit';
 import { Shelter } from '../models/Pet';
 import { ShelterService, ShelterDetailResult } from '../services/ShelterService';
 import { MapView, MapMarker } from '../components/MapView';
@@ -67,6 +68,24 @@ struct ShelterDetailPage {
   getOccupancyRate(): number {
     if (this.shelter === null || this.shelter.capacity === 0) return 0;
     return Math.round((this.shelter.current_animals / this.shelter.capacity) * 100);
+  }
+
+  // 拨打电话 - 使用 Want 打开拨号界面
+  makePhoneCall(phoneNumber: string): void {
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      const want: Want = {
+        action: 'ohos.want.action.call',
+        uri: `tel:${phoneNumber}`
+      };
+      context.startAbility(want).then(() => {
+        console.info('[ShelterDetail] Open dialer success');
+      }).catch((err: Error) => {
+        console.error('[ShelterDetail] Open dialer error:', JSON.stringify(err));
+      });
+    } catch (error) {
+      console.error('[ShelterDetail] makePhoneCall exception:', JSON.stringify(error));
+    }
   }
 
   @Builder
@@ -465,6 +484,11 @@ struct ShelterDetailPage {
             .height(48)
             .backgroundColor('#4CAF50')
             .borderRadius(24)
+            .onClick(() => {
+              if (this.shelter !== null && this.shelter.phone.length > 0) {
+                this.makePhoneCall(this.shelter.phone);
+              }
+            })
           }
 
           Button() {

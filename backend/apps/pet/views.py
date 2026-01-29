@@ -22,6 +22,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework import viewsets, permissions
 from django.utils import timezone
 from django.contrib.auth.models import User
+from apps.holiday_family.models import HolidayFamilyApplication
 import logging
 logger = logging.getLogger(__name__)
 
@@ -486,11 +487,179 @@ class HolidayFamilyViewSet(viewsets.ModelViewSet):
     serializer_class = HolidayFamilyApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
     
+    def get_authenticators(self):
+        """Allow unauthenticated access to approved list and retrieve"""
+        if getattr(self, 'action', None) in ['approved', 'retrieve']:
+            return []
+        return super().get_authenticators()
+    
+    def get_permissions(self):
+        """Allow public access to approved list and retrieve"""
+        if self.action in ['approved', 'retrieve']:
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+    
     def get_queryset(self):
         """Users can only see their own application, admins can see all"""
+        if self.action in ['approved', 'retrieve']:
+            return HolidayFamily.objects.filter(status='approved')
         if self.request.user.is_staff:
             return HolidayFamily.objects.all()
         return HolidayFamily.objects.filter(user=self.request.user)
+    
+    def retrieve(self, request, *args, **kwargs):
+        """Get single certified family detail - public access"""
+        from apps.user.models import UserProfile
+        from apps.holiday_family.models import HolidayFamilyApplication, HolidayFamilyPhoto
+        pk = kwargs.get('pk')
+        try:
+            profile = UserProfile.objects.select_related('user').get(pk=pk, is_holiday_family_certified=True)
+            
+            # Try to get full application data
+            try:
+                app = HolidayFamilyApplication.objects.get(user=profile.user)
+                # Get family photos
+                photos = HolidayFamilyPhoto.objects.filter(application=app)
+                photo_urls = [p.photo.url for p in photos if p.photo]
+                
+                data = {
+                    'id': profile.id,
+                    'user': profile.user.id,
+                    'full_name': app.full_name or f"{profile.user.first_name} {profile.user.last_name}".strip() or profile.user.username,
+                    'email': app.email or profile.user.email,
+                    'phone': app.phone or profile.phone or '',
+                    'country': app.country or '',
+                    'state': app.state or '',
+                    'city': app.city or '',
+                    'street_address': app.street_address or '',
+                    'postal_code': app.postal_code or '',
+                    'pet_count': app.pet_count or 0,
+                    'can_take_dogs': app.can_take_dogs,
+                    'can_take_cats': app.can_take_cats,
+                    'can_take_rabbits': app.can_take_rabbits,
+                    'can_take_others': app.can_take_others or '',
+                    'motivation': app.motivation or '',
+                    'introduction': app.introduction or f"Hi! I'm {profile.user.first_name or profile.user.username}, a certified holiday foster family member.",
+                    'family_photos': photo_urls,
+                    'terms_agreed': True,
+                    'status': 'approved',
+                    'rejection_reason': None,
+                    'created_at': app.created_at.isoformat() if app.created_at else profile.user.date_joined.isoformat(),
+                    'updated_at': app.updated_at.isoformat() if app.updated_at else profile.user.date_joined.isoformat(),
+                    'avatar': profile.avatar.url if profile.avatar else None,
+                }
+            except HolidayFamilyApplication.DoesNotExist:
+                # Fallback to basic profile data
+                data = {
+                    'id': profile.id,
+                    'user': profile.user.id,
+                    'full_name': f"{profile.user.first_name} {profile.user.last_name}".strip() or profile.user.username,
+                    'email': profile.user.email,
+                    'phone': profile.phone or '',
+                    'country': '',
+                    'state': '',
+                    'city': '',
+                    'street_address': '',
+                    'postal_code': '',
+                    'pet_count': 0,
+                    'can_take_dogs': True,
+                    'can_take_cats': True,
+                    'can_take_rabbits': True,
+                    'can_take_others': '',
+                    'motivation': '',
+                    'introduction': f"Hi! I'm {profile.user.first_name or profile.user.username}, a certified holiday foster family member.",
+                    'family_photos': [],
+                    'terms_agreed': True,
+                    'status': 'approved',
+                    'rejection_reason': None,
+                    'created_at': profile.user.date_joined.isoformat(),
+                    'updated_at': profile.user.date_joined.isoformat(),
+                    'avatar': profile.avatar.url if profile.avatar else None,
+                }
+            return Response(data)
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"detail": "Family not found or not certified"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=False, methods=['get'], url_path='approved')
+    def approved(self, request):
+        """Get all certified Holiday Family users - public access"""
+        from apps.user.models import UserProfile
+        from apps.holiday_family.models import HolidayFamilyApplication
+        
+        profiles = UserProfile.objects.select_related('user').filter(
+            is_holiday_family_certified=True
+        ).order_by('-user__date_joined')
+        
+        # Get all applications for certified users in one query
+        user_ids = [p.user.id for p in profiles]
+        applications = HolidayFamilyApplication.objects.filter(user_id__in=user_ids)
+        app_by_user = {app.user_id: app for app in applications}
+        
+        results = []
+        for profile in profiles:
+            app = app_by_user.get(profile.user.id)
+            if app:
+                results.append({
+                    'id': profile.id,
+                    'user': profile.user.id,
+                    'full_name': app.full_name or f"{profile.user.first_name} {profile.user.last_name}".strip() or profile.user.username,
+                    'email': app.email or profile.user.email,
+                    'phone': app.phone or profile.phone or '',
+                    'country': app.country or '',
+                    'state': app.state or '',
+                    'city': app.city or '',
+                    'street_address': app.street_address or '',
+                    'postal_code': app.postal_code or '',
+                    'pet_count': app.pet_count or 0,
+                    'can_take_dogs': app.can_take_dogs,
+                    'can_take_cats': app.can_take_cats,
+                    'can_take_rabbits': app.can_take_rabbits,
+                    'can_take_others': app.can_take_others or '',
+                    'motivation': app.motivation or '',
+                    'introduction': app.introduction or f"Hi! I'm {profile.user.first_name or profile.user.username}, a certified holiday foster family member.",
+                    'family_photos': [],
+                    'terms_agreed': True,
+                    'status': 'approved',
+                    'rejection_reason': None,
+                    'created_at': app.created_at.isoformat() if app.created_at else profile.user.date_joined.isoformat(),
+                    'updated_at': app.updated_at.isoformat() if app.updated_at else profile.user.date_joined.isoformat(),
+                    'avatar': profile.avatar.url if profile.avatar else None,
+                })
+            else:
+                results.append({
+                    'id': profile.id,
+                    'user': profile.user.id,
+                    'full_name': f"{profile.user.first_name} {profile.user.last_name}".strip() or profile.user.username,
+                    'email': profile.user.email,
+                    'phone': profile.phone or '',
+                    'country': '',
+                    'state': '',
+                    'city': '',
+                    'street_address': '',
+                    'postal_code': '',
+                    'pet_count': 0,
+                    'can_take_dogs': True,
+                    'can_take_cats': True,
+                    'can_take_rabbits': True,
+                    'can_take_others': '',
+                    'motivation': '',
+                    'introduction': f"Hi! I'm {profile.user.first_name or profile.user.username}, a certified holiday foster family member.",
+                    'family_photos': [],
+                    'terms_agreed': True,
+                    'status': 'approved',
+                    'rejection_reason': None,
+                    'created_at': profile.user.date_joined.isoformat(),
+                    'updated_at': profile.user.date_joined.isoformat(),
+                    'avatar': profile.avatar.url if profile.avatar else None,
+                })
+        
+        return Response({
+            'count': len(results),
+            'results': results
+        })
     
     @action(detail=False, methods=['get'], url_path='my-application')
     def my_application(self, request):

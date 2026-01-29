@@ -1,13 +1,31 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from .models import HolidayFamilyApplication
 from .serializers import HolidayFamilyApplicationSerializer
 from apps.user.models import Notification
 
 User = get_user_model()
+
+
+class ApprovedFamiliesListView(APIView):
+    """Public API view for approved families - no authentication required"""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        applications = HolidayFamilyApplication.objects.filter(
+            status='approved'
+        ).order_by('-created_at')
+        
+        serializer = HolidayFamilyApplicationSerializer(applications, many=True)
+        return Response({
+            'count': applications.count(),
+            'results': serializer.data
+        })
 
 
 class HolidayFamilyApplicationViewSet(viewsets.ModelViewSet):

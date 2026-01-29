@@ -53,8 +53,12 @@ export class ShelterService {
     const result = new ShelterListResult();
     const url = ApiConfig.buildUrlWithQuery(ApiEndpoints.SHELTERS, filter.toQueryParams());
 
+    console.info('[ShelterService] Fetching shelters, URL:', url);
+
     try {
       const response = await this.httpClient.get(url, true);
+
+      console.info('[ShelterService] Response success:', response.success);
 
       if (response.success) {
         const parsed = JSON.parse(response.data) as Record<string, Object>;

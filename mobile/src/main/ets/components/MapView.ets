@@ -54,18 +54,14 @@ export struct MapView {
   @Prop zoom: number = 10;
   @Prop mapboxToken: string = '';
   @Prop showStaticFallback: boolean = true;
+  // 标记点击回调
+  onMarkerClick?: (marker: MapMarker) => void;
 
   private controller: webview.WebviewController = new webview.WebviewController();
   @State isLoading: boolean = true;
   @State hasError: boolean = false;
   @State errorMessage: string = '';
   @State mapReady: boolean = false;
-
-  private onMarkerClick?: (marker: MapMarker) => void;
-
-  setOnMarkerClickListener(callback: (marker: MapMarker) => void): void {
-    this.onMarkerClick = callback;
-  }
 
   // 获取静态地图 URL（作为备用）
   private getStaticMapUrl(): string {
@@ -93,18 +89,21 @@ export struct MapView {
         console.info('[MapView] initMap result:', result);
         if (result.includes('success')) {
           this.mapReady = true;
+          this.isLoading = false; // 地图初始化成功后才隐藏 loading
           // 添加标记
           if (this.markers.length > 0) {
             this.addMarkersToMap();
           }
         } else {
           this.hasError = true;
+          this.isLoading = false;
           this.errorMessage = result;
         }
       })
       .catch((err: Error) => {
         console.error('[MapView] initMap error:', err.message);
         this.hasError = true;
+        this.isLoading = false;
         this.errorMessage = err.message;
       });
   }
@@ -181,10 +180,11 @@ export struct MapView {
         .justifyContent(FlexAlign.Center)
         .backgroundColor('#F5F5F5')
         .onClick(() => {
+          // 重置状态，让组件重新渲染 Web 组件
           this.hasError = false;
           this.isLoading = true;
           this.mapReady = false;
-          this.controller.loadUrl($rawfile('mapbox.html'));
+          // 不调用 loadUrl，让 if-else 切换到 Web 组件分支
         })
       } else {
         Web({ src: $rawfile('mapbox.html'), controller: this.controller })
@@ -195,8 +195,7 @@ export struct MapView {
           .cacheMode(CacheMode.Default)
           .onPageEnd(() => {
             console.info('[MapView] Page loaded, initializing...');
-            this.isLoading = false;
-            // 页面加载完成后初始化地图
+            // 页面加载完成后初始化地图，loading 状态在 initializeMap 成功后才改变
             this.initializeMap();
           })
           .onErrorReceive((event) => {
@@ -215,6 +214,21 @@ export struct MapView {
             // 检测地图加载成功
             if (msg.includes('loaded successfully')) {
               this.isLoading = false;
+            }
+            // 检测标记点击事件
+            if (msg.startsWith('[MarkerClick]:')) {
+              const markerId = parseInt(msg.replace('[MarkerClick]:', ''));
+              console.info('[MapView] Marker clicked:', markerId);
+              // 触发回调
+              if (this.onMarkerClick !== undefined) {
+                // 查找对应的 marker
+                for (let i = 0; i < this.markers.length; i++) {
+                  if (this.markers[i].id === markerId) {
+                    this.onMarkerClick(this.markers[i]);
+                    break;
+                  }
+                }
+              }
             }
             return false;
           })

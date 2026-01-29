@@ -17,6 +17,7 @@
     "pages/BlogListPage",
     "pages/BlogDetailPage",
     "pages/HolidayFamilyPage",
+    "pages/HolidayFamilyDetailPage",
     "pages/ChatPage",
     "pages/NotificationPage",
     "pages/EditProfilePage",

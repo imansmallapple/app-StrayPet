@@ -11,6 +11,10 @@
     {
       "name": "MobileAbility_label",
       "value": "label"
+    },
+    {
+      "name": "call_permission_reason",
+      "value": "Used to call shelter phone numbers"
     }
   ]
 }

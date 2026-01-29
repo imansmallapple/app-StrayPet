@@ -37,7 +37,11 @@ struct ShelterListPage {
     filter.page = 1;
     filter.page_size = 50;
 
+    console.info('[ShelterList] Loading shelters with search:', this.searchText);
+
     const result = await this.shelterService.getShelters(filter);
+
+    console.info('[ShelterList] Got result, success:', result.success, 'count:', result.shelters.length);
 
     if (result.success) {
       this.shelters = result.shelters;
@@ -245,20 +249,51 @@ struct ShelterListPage {
       .width('100%')
       .padding({ left: 8, right: 16, top: 12, bottom: 12 })
 
-      // Search (only show in list mode)
-      if (this.viewMode === 'list') {
-        Row() {
-          SearchBar({
-            searchText: $searchText,
-            placeholder: 'Search shelters...',
-            onSearch: () => {
-              this.loadShelters();
-            }
+      // Search bar (hide in map mode)
+      Row() {
+        SymbolGlyph($r('sys.symbol.magnifyingglass'))
+          .fontSize(18)
+          .fontColor(['#9E9E9E'])
+          .margin({ left: 12 })
+          .onClick(() => {
+            console.info('[ShelterList] Search icon clicked, searchText:', this.searchText);
+            this.loadShelters();
           })
+
+        TextInput({ placeholder: 'Search shelters...' })
+          .fontSize(15)
+          .fontColor('#212121')
+          .placeholderColor('#BDBDBD')
+          .backgroundColor(Color.Transparent)
+          .layoutWeight(1)
+          .height(40)
+          .padding({ left: 8, right: 8 })
+          .onChange((value: string) => {
+            this.searchText = value;
+          })
+          .onSubmit(() => {
+            console.info('[ShelterList] Search submitted:', this.searchText);
+            this.loadShelters();
+          })
+
+        // 清除按钮 - 搜索文字不为空时显示
+        if (this.searchText.length > 0) {
+          SymbolGlyph($r('sys.symbol.xmark_circle_fill'))
+            .fontSize(18)
+            .fontColor(['#9E9E9E'])
+            .margin({ right: 12 })
+            .onClick(() => {
+              this.searchText = '';
+              this.loadShelters();
+            })
         }
-        .width('100%')
-        .padding({ left: 16, right: 16 })
       }
+      .width('100%')
+      .height(44)
+      .backgroundColor('#F5F5F5')
+      .borderRadius(22)
+      .margin({ left: 16, right: 16 })
+      .visibility(this.viewMode === 'list' ? Visibility.Visible : Visibility.None)
 
       // Content
       if (this.isLoading) {
@@ -320,7 +355,19 @@ struct ShelterListPage {
               centerLat: this.mapMarkers.length > 0 ? this.mapMarkers[0].latitude : MapConfig.DEFAULT_LAT,
               centerLng: this.mapMarkers.length > 0 ? this.mapMarkers[0].longitude : MapConfig.DEFAULT_LNG,
               zoom: 11,
-              mapboxToken: MapConfig.MAPBOX_TOKEN
+              mapboxToken: MapConfig.MAPBOX_TOKEN,
+              onMarkerClick: (marker: MapMarker) => {
+                // 点击标记跳转到对应 Shelter 详情页
+                console.info('[ShelterList] Marker clicked, navigating to shelter:', marker.id);
+                try {
+                  router.pushUrl({
+                    url: 'pages/ShelterDetailPage',
+                    params: { shelterId: marker.id }
+                  });
+                } catch (err) {
+                  console.error('Navigation error', JSON.stringify(err));
+                }
+              }
             })
               .width('100%')
               .layoutWeight(1)

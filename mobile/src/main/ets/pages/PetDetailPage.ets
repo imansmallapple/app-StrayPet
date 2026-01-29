@@ -379,7 +379,6 @@ struct PetDetailPage {
             .width('100%')
             .padding(20)
             .backgroundColor('#FFFFFF')
-            .borderRadius({ topLeft: 24, topRight: 24 })
             .margin({ top: -20 })
           }
         }
