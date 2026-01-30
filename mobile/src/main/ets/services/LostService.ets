@@ -157,7 +157,11 @@ export class LostService {
     lost.lost_time = String(data['lost_time'] || '');
     lost.description = String(data['description'] || '');
     lost.reward = Number(data['reward']) || 0;
-    lost.photo = String(data['photo'] || data['photo_url'] || '');
+    // Get photo URL - try photo_url first (full URL from serializer), then photo
+    const photoUrl = String(data['photo_url'] || '');
+    const photo = String(data['photo'] || '');
+    lost.photo = photoUrl.length > 0 ? photoUrl : photo;
+    console.info('[LostService] Parsed lost photo:', lost.photo);
     lost.status = String(data['status'] || 'open');
     lost.contact_phone = String(data['contact_phone'] || '');
     lost.contact_email = String(data['contact_email'] || '');

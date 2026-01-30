@@ -75,22 +75,28 @@
 
     // 初始化地图 - 由原生代码调用
     function initMap(token, centerLng, centerLat, zoom) {
-      console.log('[Map] initMap called');
+      console.log('[Map] initMap called with center:', centerLng, centerLat, 'zoom:', zoom);
       mapConfig.token = token;
       mapConfig.center = [centerLng, centerLat];
       mapConfig.zoom = zoom;
 
       try {
+        // 检查 Mapbox GL JS 是否加载
         if (typeof mapboxgl === 'undefined') {
-          throw new Error('Mapbox GL JS not loaded');
+          console.error('[Map] Mapbox GL JS not loaded - check network connection');
+          throw new Error('Mapbox GL JS not loaded. Please check your network connection.');
         }
 
+        console.log('[Map] Mapbox GL JS version:', mapboxgl.version);
         mapboxgl.accessToken = token;
 
+        // 检查 WebGL 支持
         if (!mapboxgl.supported()) {
-          throw new Error('WebGL not supported');
+          console.error('[Map] WebGL not supported on this device');
+          throw new Error('WebGL not supported. The map requires WebGL to render.');
         }
 
+        console.log('[Map] WebGL supported, creating map...');
         map = new mapboxgl.Map({
           container: 'map',
           style: 'mapbox://styles/mapbox/streets-v12',
@@ -106,6 +112,11 @@
           document.getElementById('loading').classList.add('hidden');
         });
 
+        // 样式加载错误处理
+        map.on('style.load', function() {
+          console.log('[Map] Style loaded successfully');
+        });
+
         // 点击地图其他地方关闭所有弹窗
         map.on('click', function(e) {
           // 检查是否点击了标记
@@ -116,16 +127,22 @@
         });
 
         map.on('error', function(e) {
-          console.error('[Map] Error:', e.error ? e.error.message : 'Unknown');
+          var errMsg = e.error ? e.error.message : (e.message || 'Unknown error');
+          console.error('[Map] Map error:', errMsg);
+          // 如果是认证错误或网络错误，显示给用户
+          if (errMsg.includes('401') || errMsg.includes('403')) {
+            document.getElementById('loading').innerHTML = '<div class="error">Invalid Mapbox token</div>';
+          }
         });
 
-        // 超时检测
+        // 超时检测 - 10秒
         setTimeout(function() {
           var loading = document.getElementById('loading');
           if (loading && !loading.classList.contains('hidden')) {
-            loading.innerHTML = 'Loading slow... Check network';
+            console.warn('[Map] Map loading timeout - network may be slow');
+            loading.innerHTML = '<div class="error">Loading slow... Check network connection</div>';
           }
-        }, 8000);
+        }, 10000);
 
         return 'success';
       } catch (err) {
@@ -136,7 +153,7 @@
     }
 
     // 添加单个标记
-    function addMarker(id, lng, lat, title, description, color) {
+    function addMarker(id, lng, lat, title, description, color, imageUrl) {
       if (!map) {
         console.warn('[Map] Map not initialized');
         return;
@@ -152,10 +169,49 @@
 
       var popup = new mapboxgl.Popup({ offset: 25, closeButton: false, closeOnClick: true }).setHTML(popupHtml);
 
-      var marker = new mapboxgl.Marker({ color: color || '#FF6B35' })
-        .setLngLat([lng, lat])
-        .setPopup(popup)
-        .addTo(map);
+      var marker;
+      
+      console.log('[Map] Creating marker with imageUrl:', imageUrl ? imageUrl.substring(0, 100) : 'none');
+      
+      // 如果有图片URL，使用自定义图片标记
+      if (imageUrl && imageUrl.length > 0) {
+        // 根据颜色参数设置边框颜色 (Lost=红色, Found=绿色)
+        var borderColor = color || '#F44336';  // 默认红色 (Lost)
+        
+        // 创建自定义标记元素 - 类似Google地图风格的圆形头像
+        var el = document.createElement('div');
+        el.className = 'custom-marker';
+        el.style.cssText = 'width: 50px; height: 50px; border-radius: 50%; border: 3px solid ' + borderColor + '; background-color: ' + borderColor + '; overflow: hidden; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.4);';
+        
+        // 显示默认图标，图片加载成功后替换
+        el.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:22px;">🐾</div>';
+        
+        var img = new Image();
+        img.onload = function() {
+          // 图片加载成功，替换内容
+          console.log('[Map] Image loaded successfully for marker:', id);
+          el.style.backgroundColor = 'white';
+          el.innerHTML = '';
+          img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+          el.appendChild(img);
+        };
+        img.onerror = function() {
+          // 图片加载失败，保持默认图标
+          console.log('[Map] Image load failed for marker:', id, 'url:', imageUrl);
+        };
+        img.src = imageUrl;
+        
+        marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([lng, lat])
+          .setPopup(popup)
+          .addTo(map);
+      } else {
+        // 使用默认颜色标记
+        marker = new mapboxgl.Marker({ color: color || '#FF6B35' })
+          .setLngLat([lng, lat])
+          .setPopup(popup)
+          .addTo(map);
+      }
 
       // 点击标记时，先关闭其他所有弹窗
       marker.getElement().addEventListener('click', function(e) {
@@ -201,7 +257,7 @@
         var data = JSON.parse(markersJson);
         for (var i = 0; i < data.length; i++) {
           var m = data[i];
-          addMarker(m.id, m.longitude, m.latitude, m.title, m.description || '', m.color || '#FF6B35');
+          addMarker(m.id, m.longitude, m.latitude, m.title, m.description || '', m.color || '#FF6B35', m.imageUrl || '');
         }
 
         // 如果有多个标记，自动调整视野

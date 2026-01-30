@@ -152,7 +152,7 @@ export class UserService {
         result.data = user;
 
         if (user !== null) {
-          TokenManager.getInstance().setUserInfo(user.id, user.username);
+          TokenManager.getInstance().setUserInfo(user.id, user.username, user.is_staff);
         }
       } else {
         result.errorMessage = this.parseErrorMessage(response.data);

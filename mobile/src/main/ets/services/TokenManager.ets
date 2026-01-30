@@ -11,15 +11,54 @@ export class TokenManager {
   private refreshToken: string = '';
   private userId: number = 0;
   private username: string = '';
+  private isStaff: boolean = false;
   private readonly PREF_NAME: string = 'stray_pet_auth';
   private isRefreshing: boolean = false;
   private context: Context | null = null;
+  private isInitialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
+  private initStarted: boolean = false;
 
   static getInstance(): TokenManager {
     if (TokenManager.instance === null) {
       TokenManager.instance = new TokenManager();
     }
     return TokenManager.instance;
+  }
+
+  // 等待初始化完成
+  async waitForInit(): Promise<void> {
+    // 如果已经初始化完成，直接返回
+    if (this.isInitialized) {
+      console.info('[TokenManager] waitForInit: already initialized');
+      return;
+    }
+    
+    // 最多等待 3 秒让初始化开始
+    let waited = 0;
+    while (!this.initStarted && waited < 3000) {
+      console.info('[TokenManager] waitForInit: waiting for init to start, waited:', waited);
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+      waited += 100;
+    }
+    
+    // 如果有 initPromise，等待它完成
+    if (this.initPromise !== null) {
+      console.info('[TokenManager] waitForInit: waiting for initPromise');
+      await this.initPromise;
+      return;
+    }
+    
+    // 如果初始化还没开始，再等一会儿看看是否完成
+    while (!this.isInitialized && waited < 5000) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+      waited += 100;
+    }
+    console.info('[TokenManager] waitForInit: done, isInitialized:', this.isInitialized);
+  }
+
+  getIsInitialized(): boolean {
+    return this.isInitialized;
   }
 
   getAccessToken(): string {
@@ -38,6 +77,10 @@ export class TokenManager {
     return this.username;
   }
 
+  getIsStaff(): boolean {
+    return this.isStaff;
+  }
+
   isLoggedIn(): boolean {
     return this.accessToken.length > 0;
   }
@@ -47,9 +90,10 @@ export class TokenManager {
     this.refreshToken = refreshToken;
   }
 
-  setUserInfo(userId: number, username: string): void {
+  setUserInfo(userId: number, username: string, isStaff: boolean = false): void {
     this.userId = userId;
     this.username = username;
+    this.isStaff = isStaff;
   }
 
   clearTokens(): void {
@@ -57,6 +101,7 @@ export class TokenManager {
     this.refreshToken = '';
     this.userId = 0;
     this.username = '';
+    this.isStaff = false;
   }
 
   async saveToPreferences(context: Context): Promise<void> {
@@ -66,6 +111,7 @@ export class TokenManager {
       await pref.put('refreshToken', this.refreshToken);
       await pref.put('userId', this.userId);
       await pref.put('username', this.username);
+      await pref.put('isStaff', this.isStaff);
       await pref.flush();
     } catch (error) {
       console.error('TokenManager: Failed to save preferences', JSON.stringify(error));
@@ -73,12 +119,21 @@ export class TokenManager {
   }
 
   async loadFromPreferences(context: Context): Promise<void> {
+    console.info('[TokenManager] loadFromPreferences: starting');
+    this.initStarted = true;
+    this.initPromise = this.doLoadFromPreferences(context);
+    await this.initPromise;
+    console.info('[TokenManager] loadFromPreferences: done');
+  }
+
+  private async doLoadFromPreferences(context: Context): Promise<void> {
     try {
       const pref = await preferences.getPreferences(context, this.PREF_NAME);
       const accessToken = await pref.get('accessToken', '');
       const refreshToken = await pref.get('refreshToken', '');
       const userId = await pref.get('userId', 0);
       const username = await pref.get('username', '');
+      const isStaff = await pref.get('isStaff', false);
 
       if (typeof accessToken === 'string') {
         this.accessToken = accessToken;
@@ -92,8 +147,14 @@ export class TokenManager {
       if (typeof username === 'string') {
         this.username = username;
       }
+      if (typeof isStaff === 'boolean') {
+        this.isStaff = isStaff;
+      }
+      console.info('[TokenManager] Loaded from preferences, token length:', this.accessToken.length);
     } catch (error) {
       console.error('TokenManager: Failed to load preferences', JSON.stringify(error));
+    } finally {
+      this.isInitialized = true;
     }
   }
 

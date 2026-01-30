@@ -251,7 +251,18 @@ struct ShelterMapPage {
             centerLat: this.mapMarkers.length > 0 ? this.mapMarkers[0].latitude : MapConfig.DEFAULT_LAT,
             centerLng: this.mapMarkers.length > 0 ? this.mapMarkers[0].longitude : MapConfig.DEFAULT_LNG,
             zoom: 11,
-            mapboxToken: MapConfig.MAPBOX_TOKEN
+            mapboxToken: MapConfig.MAPBOX_TOKEN,
+            onMarkerClick: (marker: MapMarker) => {
+              // Navigate to shelter detail page
+              try {
+                router.pushUrl({
+                  url: 'pages/ShelterDetailPage',
+                  params: { shelterId: marker.id }
+                });
+              } catch (err) {
+                console.error('Navigation error', JSON.stringify(err));
+              }
+            }
           })
             .width('100%')
             .layoutWeight(1)

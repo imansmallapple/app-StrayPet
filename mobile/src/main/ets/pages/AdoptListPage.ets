@@ -204,16 +204,30 @@ struct AdoptListPage {
 
         Blank()
 
-        SymbolGlyph($r('sys.symbol.plus_circle_fill'))
-          .fontSize(24)
-          .fontColor(['#FF6B35'])
-          .onClick(() => {
-            try {
-              router.pushUrl({ url: 'pages/DonationFormPage' });
-            } catch (err) {
-              console.error('Navigation error', JSON.stringify(err));
-            }
-          })
+        // Admin: show add button; Normal user: show help button
+        if (this.tokenManager.getIsStaff()) {
+          SymbolGlyph($r('sys.symbol.plus_circle_fill'))
+            .fontSize(24)
+            .fontColor(['#FF6B35'])
+            .onClick(() => {
+              try {
+                router.pushUrl({ url: 'pages/DonationFormPage' });
+              } catch (err) {
+                console.error('Navigation error', JSON.stringify(err));
+              }
+            })
+        } else {
+          SymbolGlyph($r('sys.symbol.questionmark_circle_fill'))
+            .fontSize(24)
+            .fontColor(['#FF6B35'])
+            .onClick(() => {
+              try {
+                router.pushUrl({ url: 'pages/HelpPage' });
+              } catch (err) {
+                console.error('Navigation error', JSON.stringify(err));
+              }
+            })
+        }
       }
       .width('100%')
       .padding({ left: 8, right: 16, top: 12, bottom: 8 })

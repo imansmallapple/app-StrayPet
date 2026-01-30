@@ -9,6 +9,7 @@ import { SearchBar } from '../SearchBar';
 import { FilterChip } from '../Chips';
 import { MapView, MapMarker } from '../MapView';
 import { MapConfig } from '../../services/ApiConfig';
+import { TokenManager } from '../../services/TokenManager';
 
 @Component
 export struct LostTabContent {
@@ -68,6 +69,9 @@ export struct LostTabContent {
     this.isLoading = true;
     this.hasError = false;
     this.currentPage = 1;
+
+    // Wait for TokenManager to be initialized
+    await TokenManager.getInstance().waitForInit();
 
     const filter = new LostFilter();
     filter.page = this.currentPage;

@@ -72,6 +72,9 @@ export struct AdoptTabContent {
     this.hasError = false;
     this.currentPage = 1;
 
+    // Wait for TokenManager to be initialized
+    await TokenManager.getInstance().waitForInit();
+
     const filter = new PetFilter();
     filter.page = this.currentPage;
 

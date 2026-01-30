@@ -12,6 +12,7 @@ interface MarkerJsonData {
   title: string;
   description: string;
   color: string;
+  imageUrl: string;
 }
 
 // Map marker data structure
@@ -40,7 +41,8 @@ export class MapMarker {
       longitude: this.longitude,
       title: this.title,
       description: this.description,
-      color: this.color
+      color: this.color,
+      imageUrl: this.imageUrl
     };
     return data;
   }
@@ -53,7 +55,7 @@ export struct MapView {
   @Prop centerLng: number = 116.4074;
   @Prop zoom: number = 10;
   @Prop mapboxToken: string = '';
-  @Prop showStaticFallback: boolean = true;
+  @Prop showStaticFallback: boolean = false;  // 默认不显示静态地图，直接重试
   // 标记点击回调
   onMarkerClick?: (marker: MapMarker) => void;
 
@@ -62,6 +64,8 @@ export struct MapView {
   @State hasError: boolean = false;
   @State errorMessage: string = '';
   @State mapReady: boolean = false;
+  @State retryCount: number = 0;  // 重试计数
+  private initTimeout: number = -1;  // 超时定时器
 
   // 获取静态地图 URL（作为备用）
   private getStaticMapUrl(): string {
@@ -83,29 +87,59 @@ export struct MapView {
   // 初始化地图（在页面加载完成后调用）
   private initializeMap(): void {
     console.info('[MapView] Initializing map...');
+    
+    // 清除之前的超时定时器
+    if (this.initTimeout !== -1) {
+      clearTimeout(this.initTimeout);
+    }
+    
+    // 设置 15 秒超时
+    this.initTimeout = setTimeout(() => {
+      if (this.isLoading && !this.mapReady) {
+        console.warn('[MapView] Map init timeout, retrying...');
+        this.retryInit();
+      }
+    }, 15000);
+    
     const script = `initMap('${this.mapboxToken}', ${this.centerLng}, ${this.centerLat}, ${this.zoom})`;
     this.controller.runJavaScript(script)
       .then((result: string) => {
         console.info('[MapView] initMap result:', result);
         if (result.includes('success')) {
+          clearTimeout(this.initTimeout);
+          this.initTimeout = -1;
           this.mapReady = true;
-          this.isLoading = false; // 地图初始化成功后才隐藏 loading
+          this.isLoading = false;
+          this.hasError = false;
           // 添加标记
           if (this.markers.length > 0) {
             this.addMarkersToMap();
           }
         } else {
-          this.hasError = true;
-          this.isLoading = false;
-          this.errorMessage = result;
+          this.retryInit();
         }
       })
       .catch((err: Error) => {
         console.error('[MapView] initMap error:', err.message);
-        this.hasError = true;
-        this.isLoading = false;
-        this.errorMessage = err.message;
+        this.retryInit();
       });
+  }
+  
+  // 重试初始化
+  private retryInit(): void {
+    this.retryCount++;
+    if (this.retryCount < 3) {
+      console.info('[MapView] Retry attempt', this.retryCount);
+      // 延迟 1 秒后重试
+      setTimeout(() => {
+        this.initializeMap();
+      }, 1000);
+    } else {
+      // 超过重试次数，显示错误
+      this.hasError = true;
+      this.isLoading = false;
+      this.errorMessage = 'Map loading failed. Tap to retry.';
+    }
   }
 
   // 添加标记到地图
@@ -113,6 +147,8 @@ export struct MapView {
     if (!this.mapReady || this.markers.length === 0) return;
 
     const markersJson = this.markersToJson();
+    console.info('[MapView] Adding markers with JSON:', markersJson.substring(0, 500));
+    // 只转义单引号，因为外层用单引号包裹
     const script = `addMarkers('${markersJson.replace(/'/g, "\\'")}')`;
     this.controller.runJavaScript(script)
       .then(() => {
@@ -158,34 +194,49 @@ export struct MapView {
   aboutToAppear(): void {
     console.info('[MapView] aboutToAppear, token:', this.mapboxToken.substring(0, 10) + '...');
   }
+  
+  aboutToDisappear(): void {
+    // 清除超时定时器
+    if (this.initTimeout !== -1) {
+      clearTimeout(this.initTimeout);
+      this.initTimeout = -1;
+    }
+  }
 
   build() {
     Stack() {
-      if (this.hasError && this.showStaticFallback) {
-        // 显示静态地图作为备用
+      if (this.hasError) {
+        // 显示错误和重试按钮
         Column() {
-          Image(this.getStaticMapUrl())
-            .width('100%')
-            .height('80%')
-            .objectFit(ImageFit.Cover)
-            .borderRadius(8)
-
-          Text('Static map (tap to retry)')
-            .fontSize(12)
-            .fontColor('#9E9E9E')
-            .margin({ top: 8 })
+          SymbolGlyph($r('sys.symbol.exclamationmark_triangle'))
+            .fontSize(48)
+            .fontColor(['#F44336'])
+          
+          Text(this.errorMessage.length > 0 ? this.errorMessage : 'Map loading failed')
+            .fontSize(14)
+            .fontColor('#757575')
+            .margin({ top: 12 })
+            .textAlign(TextAlign.Center)
+          
+          Button('Retry')
+            .fontSize(14)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#4CAF50')
+            .borderRadius(20)
+            .margin({ top: 16 })
+            .onClick(() => {
+              // 重置状态并重试
+              this.hasError = false;
+              this.isLoading = true;
+              this.mapReady = false;
+              this.retryCount = 0;
+            })
         }
         .width('100%')
         .height('100%')
         .justifyContent(FlexAlign.Center)
         .backgroundColor('#F5F5F5')
-        .onClick(() => {
-          // 重置状态，让组件重新渲染 Web 组件
-          this.hasError = false;
-          this.isLoading = true;
-          this.mapReady = false;
-          // 不调用 loadUrl，让 if-else 切换到 Web 组件分支
-        })
+        .padding(32)
       } else {
         Web({ src: $rawfile('mapbox.html'), controller: this.controller })
           .javaScriptAccess(true)
@@ -208,12 +259,17 @@ export struct MapView {
             const level = event.message.getMessageLevel();
             if (level >= 4) {
               console.error('[MapView-JS]', msg);
+              // 捕获具体的错误信息
+              if (msg.includes('not loaded') || msg.includes('WebGL') || msg.includes('network')) {
+                this.errorMessage = msg.replace('[Map] ', '');
+              }
             } else {
               console.info('[MapView-JS]', msg);
             }
             // 检测地图加载成功
             if (msg.includes('loaded successfully')) {
               this.isLoading = false;
+              this.hasError = false;
             }
             // 检测标记点击事件
             if (msg.startsWith('[MarkerClick]:')) {
