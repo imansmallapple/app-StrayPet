@@ -594,7 +594,7 @@ class FriendshipViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
         """接受好友请求"""
-        from apps.user.models import PrivateMessage
+        from apps.user.models import PrivateMessage, Notification
         
         friendship = self.get_object()
         if friendship.to_user != request.user:
@@ -602,6 +602,12 @@ class FriendshipViewSet(viewsets.ModelViewSet):
         
         friendship.status = 'accepted'
         friendship.save()
+        
+        # 将相关的好友请求通知标记为已读
+        Notification.objects.filter(
+            friendship=friendship,
+            notification_type='friend_request'
+        ).update(is_read=True)
         
         # 创建系统消息：为两边创建相同内容的系统消息
         message_content = 'We are now friends, you can start chatting!'
@@ -628,12 +634,21 @@ class FriendshipViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         """拒绝好友请求"""
+        from apps.user.models import Notification
+        
         friendship = self.get_object()
         if friendship.to_user != request.user:
             return Response({'error': '只有接收者能拒绝好友请求'}, status=status.HTTP_403_FORBIDDEN)
         
         friendship.status = 'blocked'
         friendship.save()
+        
+        # 将相关的好友请求通知标记为已读
+        Notification.objects.filter(
+            friendship=friendship,
+            notification_type='friend_request'
+        ).update(is_read=True)
+        
         serializer = self.get_serializer(friendship)
         return Response(serializer.data)
     
@@ -711,6 +726,58 @@ class FriendshipViewSet(viewsets.ModelViewSet):
             'total_pages': paginator.num_pages,
         })
 
+    @action(detail=False, methods=['get'])
+    def search_users(self, request):
+        """搜索用户（用于添加好友）"""
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response({'error': '缺少搜索关键词'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if len(query) < 2:
+            return Response({'error': '搜索关键词至少需要2个字符'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 搜索用户名或email包含关键词的用户，排除当前用户
+        users = User.objects.filter(
+            Q(username__icontains=query) | Q(email__icontains=query)
+        ).exclude(id=request.user.id)[:20]  # 限制最多返回20条
+        
+        results = []
+        for user in users:
+            avatar_url = None
+            if hasattr(user, 'profile') and user.profile and user.profile.avatar:
+                avatar_url = user.profile.avatar.url
+                if avatar_url.startswith('/'):
+                    avatar_url = request.build_absolute_uri(avatar_url)
+            
+            # 检查好友关系
+            friendship = Friendship.objects.filter(
+                Q(from_user=request.user, to_user=user) |
+                Q(from_user=user, to_user=request.user)
+            ).first()
+            
+            friendship_status = None
+            friendship_id = None
+            is_sent_by_me = False
+            if friendship:
+                friendship_status = friendship.status
+                friendship_id = friendship.id
+                is_sent_by_me = friendship.from_user == request.user
+            
+            results.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'avatar': avatar_url,
+                'friendship_status': friendship_status,
+                'friendship_id': friendship_id,
+                'is_sent_by_me': is_sent_by_me,
+            })
+        
+        return Response({
+            'count': len(results),
+            'results': results,
+        })
+
 
 class PrivateMessageViewSet(viewsets.ModelViewSet):
     """私信管理 API"""
@@ -770,6 +837,8 @@ class PrivateMessageViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def conversation(self, request):
         """获取与某用户的对话"""
+        from django.utils import timezone
+        
         user_id = request.query_params.get('user_id')
         if not user_id:
             return Response({'error': '缺少user_id参数'}, status=status.HTTP_400_BAD_REQUEST)
@@ -778,6 +847,13 @@ class PrivateMessageViewSet(viewsets.ModelViewSet):
             Q(sender=request.user, recipient_id=user_id) |
             Q(sender_id=user_id, recipient=request.user)
         ).order_by('created_at')  # 按升序排列，最新的消息在最后
+        
+        # 自动将对方发给我的未读消息标记为已读
+        PrivateMessage.objects.filter(
+            sender_id=user_id,
+            recipient=request.user,
+            is_read=False
+        ).update(is_read=True, read_at=timezone.now())
         
         serializer = self.get_serializer(messages, many=True, context={'request': request})
         return Response({

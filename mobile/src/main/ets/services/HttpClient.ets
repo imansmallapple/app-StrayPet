@@ -105,16 +105,22 @@ export class HttpClient {
     const response = new HttpResponse();
 
     try {
+      console.info('[HttpClient] POST request to:', url);
+      console.info('[HttpClient] POST body:', body);
+      const headers = this.getHeaders(needAuth);
+      console.info('[HttpClient] POST headers:', JSON.stringify(headers));
+      
       const result = await httpRequest.request(url, {
         method: http.RequestMethod.POST,
-        header: this.getHeaders(needAuth),
-        extraData: body,
+        header: headers,
+        extraData: body.length > 0 ? body : '{}',
         connectTimeout: ApiConfig.TIMEOUT,
         readTimeout: ApiConfig.TIMEOUT
       });
 
       response.code = result.responseCode;
       response.success = result.responseCode >= 200 && result.responseCode < 300;
+      console.info('[HttpClient] POST response code:', result.responseCode);
 
       if (typeof result.result === 'string') {
         response.data = result.result;
@@ -140,8 +146,10 @@ export class HttpClient {
       response.success = false;
       if (error instanceof Error) {
         response.errorMessage = error.message;
+        console.error('[HttpClient] POST error:', error.message);
       } else {
         response.errorMessage = 'Unknown error occurred';
+        console.error('[HttpClient] POST unknown error:', JSON.stringify(error));
       }
     } finally {
       httpRequest.destroy();

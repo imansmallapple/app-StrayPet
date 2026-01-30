@@ -360,13 +360,11 @@ export struct ProfileTabContent {
         // Social section
         this.MenuSection('Social', [
           new MenuItem($r('sys.symbol.person_2_fill'), 'Friends', 'pages/FriendsPage'),
-          new MenuItem($r('sys.symbol.envelope_fill'), 'Friend Requests', 'pages/FriendRequestsPage', true, 0),
         ])
 
         // Settings section
         this.MenuSection('Settings', [
-          new MenuItem($r('sys.symbol.bell_fill'), 'Notifications', 'pages/NotificationSettingsPage'),
-          new MenuItem($r('sys.symbol.lock_fill'), 'Privacy', 'pages/PrivacySettingsPage'),
+          new MenuItem($r('sys.symbol.bell_fill'), 'Notifications', 'pages/NotificationPage'),
           new MenuItem($r('sys.symbol.questionmark_circle_fill'), 'Help & Feedback', 'pages/HelpPage'),
           new MenuItem($r('sys.symbol.info_circle_fill'), 'About', 'pages/AboutPage'),
         ])

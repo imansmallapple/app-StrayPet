@@ -4,7 +4,7 @@
 import { HttpClient } from './HttpClient';
 import { ApiConfig, ApiEndpoints } from './ApiConfig';
 import { TokenManager } from './TokenManager';
-import { User, UserProfile, TokenResponse, LoginRequest, RegisterRequest, UpdateProfileRequest, Notification, ApiResponse } from '../models/index';
+import { User, UserProfile, TokenResponse, LoginRequest, RegisterRequest, UpdateProfileRequest, ApiResponse } from '../models/index';
 
 export class UserResult {
   success: boolean = false;
@@ -28,15 +28,6 @@ export class LoginResult {
     this.tokens = tokens;
     this.errorMessage = errorMessage;
   }
-}
-
-export class NotificationsResult {
-  success: boolean = false;
-  notifications: Notification[] = [];
-  count: number = 0;
-  errorMessage: string = '';
-
-  constructor() {}
 }
 
 export class UserService {
@@ -182,44 +173,6 @@ export class UserService {
       }
     } catch (error) {
       result.errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
-    }
-
-    return result;
-  }
-
-  async getNotifications(page: number = 1): Promise<NotificationsResult> {
-    const result = new NotificationsResult();
-    const queryParams = new Map<string, string>();
-    queryParams.set('page', page.toString());
-
-    const url = ApiConfig.buildUrlWithQuery(ApiEndpoints.NOTIFICATIONS, queryParams);
-
-    try {
-      const response = await this.httpClient.get(url, true);
-
-      if (response.success) {
-        const parsed = JSON.parse(response.data) as Record<string, Object>;
-        const resultsArray = parsed['results'] as Array<Record<string, Object>>;
-
-        if (Array.isArray(resultsArray)) {
-          resultsArray.forEach((item: Record<string, Object>) => {
-            const notification = new Notification();
-            notification.id = Number(item['id']) || 0;
-            notification.notification_type = String(item['notification_type']) || '';
-            notification.message = String(item['message']) || '';
-            notification.is_read = Boolean(item['is_read']);
-            notification.created_at = String(item['created_at']) || '';
-            result.notifications.push(notification);
-          });
-        }
-
-        result.count = Number(parsed['count']) || 0;
-        result.success = true;
-      } else {
-        result.errorMessage = this.parseErrorMessage(response.data);
-      }
-    } catch (error) {
-      result.errorMessage = error instanceof Error ? error.message : 'Failed to get notifications';
     }
 
     return result;

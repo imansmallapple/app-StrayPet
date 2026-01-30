@@ -71,7 +71,12 @@ struct MainPage {
     Tabs({ barPosition: BarPosition.End, controller: this.tabController }) {
       // Home
       TabContent() {
-        HomeTabContent()
+        HomeTabContent({
+          onSwitchTab: (tabIndex: number) => {
+            this.currentTab = tabIndex;
+            this.tabController.changeIndex(tabIndex);
+          }
+        })
       }
       .tabBar(this.TabBarItem(0, 'Home', $r('sys.symbol.house_fill')))
 
@@ -89,7 +94,7 @@ struct MainPage {
 
       // Messages
       TabContent() {
-        MessageTabContent({ isLoggedIn: this.isLoggedIn })
+        MessageTabContent({ isLoggedIn: this.isLoggedIn, isVisible: this.currentTab === 3 })
       }
       .tabBar(this.TabBarItem(3, 'Messages', $r('sys.symbol.message_fill')))
 

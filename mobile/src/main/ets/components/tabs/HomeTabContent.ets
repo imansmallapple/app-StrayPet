@@ -8,6 +8,7 @@ import { PetService, PetFilter, PetListResult } from '../../services/PetService'
 import { LostService, LostFilter, LostListResult } from '../../services/LostService';
 import { ShelterService, ShelterFilter, ShelterListResult } from '../../services/ShelterService';
 import { BlogService, BlogArticle, ArticleListResult, ArticleFilter } from '../../services/BlogService';
+import { SocialService } from '../../services/SocialService';
 import { TokenManager } from '../../services/TokenManager';
 
 @Component
@@ -18,11 +19,16 @@ export struct HomeTabContent {
   @State nearbyShelters: Shelter[] = [];
   @State latestArticles: BlogArticle[] = [];
   @State isLoading: boolean = true;
+  @State unreadNotificationCount: number = 0;
+
+  // Callback for tab switching
+  onSwitchTab: (tabIndex: number) => void = () => {};
 
   private petService: PetService = new PetService();
   private lostService: LostService = new LostService();
   private shelterService: ShelterService = new ShelterService();
   private blogService: BlogService = new BlogService();
+  private socialService: SocialService = new SocialService();
   private bannerImages: string[] = [
     'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800',
     'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800',
@@ -72,6 +78,14 @@ export struct HomeTabContent {
     const articleResult = await this.blogService.getArticles(articleFilter);
     if (articleResult.success) {
       this.latestArticles = articleResult.articles;
+    }
+
+    // Load unread notification count if logged in
+    if (TokenManager.getInstance().getAccessToken().length > 0) {
+      const notifResult = await this.socialService.getNotifications(1, 1);
+      if (notifResult.success) {
+        this.unreadNotificationCount = notifResult.unread_count;
+      }
     }
 
     this.isLoading = false;
@@ -459,16 +473,31 @@ export struct HomeTabContent {
 
           Blank()
 
-          Row() {
-            SymbolGlyph($r('sys.symbol.bell_fill'))
-              .fontSize(22)
-              .fontColor(['#424242'])
+          Stack() {
+            Row() {
+              SymbolGlyph($r('sys.symbol.bell_fill'))
+                .fontSize(22)
+                .fontColor(['#424242'])
+            }
+            .width(40)
+            .height(40)
+            .backgroundColor('#F5F5F5')
+            .borderRadius(20)
+            .justifyContent(FlexAlign.Center)
+
+            // Unread notification badge
+            if (this.unreadNotificationCount > 0) {
+              Text(this.unreadNotificationCount > 99 ? '99+' : this.unreadNotificationCount.toString())
+                .fontSize(10)
+                .fontColor('#FFFFFF')
+                .backgroundColor('#F44336')
+                .borderRadius(10)
+                .padding({ left: 5, right: 5, top: 2, bottom: 2 })
+                .position({ x: '60%', y: 0 })
+            }
           }
           .width(40)
           .height(40)
-          .backgroundColor('#F5F5F5')
-          .borderRadius(20)
-          .justifyContent(FlexAlign.Center)
           .onClick(() => {
             try {
               router.pushUrl({ url: 'pages/NotificationPage' });
@@ -536,10 +565,10 @@ export struct HomeTabContent {
             this.navigateTo('pages/BlogListPage');
           })
           this.QuickEntryItem($r('sys.symbol.message_fill'), 'Message', '#00BCD4', () => {
-            this.navigateTo('pages/MessageListPage');
+            this.onSwitchTab(3); // Switch to Messages tab
           })
           this.QuickEntryItem($r('sys.symbol.person_crop_circle_fill'), 'Profile', '#795548', () => {
-            this.navigateTo('pages/ProfilePage');
+            this.onSwitchTab(4); // Switch to Profile tab
           })
           this.QuickEntryItem($r('sys.symbol.questionmark_circle_fill'), 'Help', '#607D8B', () => {
             this.navigateTo('pages/HelpPage');

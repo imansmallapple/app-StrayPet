@@ -441,8 +441,8 @@ class NotificationSerializer(serializers.ModelSerializer):
     """通知序列化器"""
     from_user = serializers.SerializerMethodField()
     comment_content = serializers.SerializerMethodField()
-    friendship_id = serializers.IntegerField(source='friendship.id', allow_null=True, required=False)
-    holiday_family_application_id = serializers.IntegerField(source='holiday_family_application.id', allow_null=True, required=False)
+    friendship_id = serializers.SerializerMethodField()
+    holiday_family_application_id = serializers.SerializerMethodField()
     content = serializers.SerializerMethodField()
     
     class Meta:
@@ -456,6 +456,16 @@ class NotificationSerializer(serializers.ModelSerializer):
                 'id': obj.from_user.id,
                 'username': obj.from_user.username
             }
+        return None
+    
+    def get_friendship_id(self, obj):
+        if obj.friendship:
+            return obj.friendship.id
+        return None
+    
+    def get_holiday_family_application_id(self, obj):
+        if obj.holiday_family_application:
+            return obj.holiday_family_application.id
         return None
     
     def get_comment_content(self, obj):

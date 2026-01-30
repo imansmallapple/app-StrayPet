@@ -11,6 +11,22 @@ export class ApiEndpoints {
   static readonly USER_INFO: string = 'user/userinfo/';
   static readonly USER_LIST: string = 'user/list/';
   static readonly NOTIFICATIONS: string = 'user/notifications/';
+  static readonly NOTIFICATION_READ: string = 'user/notifications/{id}/mark_as_read/';
+
+  // Friendship endpoints
+  static readonly FRIENDSHIPS: string = 'user/friendships/';
+  static readonly FRIENDSHIP_ADD: string = 'user/friendships/add_friend/';
+  static readonly FRIENDSHIP_ACCEPT: string = 'user/friendships/{id}/accept/';
+  static readonly FRIENDSHIP_REJECT: string = 'user/friendships/{id}/reject/';
+  static readonly FRIENDSHIP_DELETE: string = 'user/friendships/{id}/';
+  static readonly FRIENDSHIP_CHECK: string = 'user/friendships/check_friendship/';
+  static readonly FRIENDS_LIST: string = 'user/friendships/list_friends/';
+  static readonly SEARCH_USERS: string = 'user/friendships/search_users/';
+
+  // Private message endpoints
+  static readonly MESSAGES: string = 'user/messages/';
+  static readonly MESSAGE_CONVERSATION: string = 'user/messages/conversation/';
+  static readonly MESSAGE_READ: string = 'user/messages/{id}/mark_as_read/';
 
   // Pet endpoints
   static readonly PETS: string = 'pet/';
