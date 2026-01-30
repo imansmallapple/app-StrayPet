@@ -329,43 +329,121 @@ struct PetDetailPage {
               }
 
               // Shelter info
-              if (this.pet.shelter !== null) {
+              if (this.pet.shelter !== null && this.pet.shelter.name.length > 0) {
                 Column() {
-                  Text('Shelter')
+                  Text('Shelter Information')
                     .fontSize(16)
                     .fontWeight(FontWeight.Medium)
                     .fontColor('#212121')
 
-                  Row() {
-                    if (this.pet.shelter.logo.length > 0) {
-                      Image(this.pet.shelter.logo)
-                        .width(40)
-                        .height(40)
-                        .borderRadius(20)
-                    }
-
-                    Column() {
-                      Text(this.pet.shelter.name)
-                        .fontSize(14)
-                        .fontColor('#424242')
-
-                      if (this.pet.shelter.is_verified) {
-                        Row() {
-                          Text('✓')
-                            .fontSize(12)
-                            .fontColor('#4CAF50')
-                          Text('Verified')
-                            .fontSize(11)
-                            .fontColor('#4CAF50')
-                            .margin({ left: 4 })
+                  Column() {
+                    // Shelter name and verification
+                    Row() {
+                      // Shelter icon/logo
+                      if (this.pet.shelter.logo.length > 0) {
+                        Image(this.pet.shelter.logo)
+                          .width(48)
+                          .height(48)
+                          .borderRadius(24)
+                      } else {
+                        Column() {
+                          Text('🏠')
+                            .fontSize(24)
                         }
-                        .margin({ top: 4 })
+                        .width(48)
+                        .height(48)
+                        .borderRadius(24)
+                        .backgroundColor('#FFF3E0')
+                        .justifyContent(FlexAlign.Center)
+                      }
+
+                      Column() {
+                        Row() {
+                          Text(this.pet.shelter.name)
+                            .fontSize(15)
+                            .fontWeight(FontWeight.Medium)
+                            .fontColor('#212121')
+
+                          if (this.pet.shelter.is_verified) {
+                            Text('✓')
+                              .fontSize(12)
+                              .fontColor('#FFFFFF')
+                              .padding(2)
+                              .margin({ left: 6 })
+                              .backgroundColor('#4CAF50')
+                              .borderRadius(10)
+                          }
+                        }
+
+                        if (this.pet.shelter.description.length > 0) {
+                          Text(this.pet.shelter.description)
+                            .fontSize(12)
+                            .fontColor('#757575')
+                            .margin({ top: 4 })
+                            .maxLines(2)
+                            .textOverflow({ overflow: TextOverflow.Ellipsis })
+                        }
+                      }
+                      .alignItems(HorizontalAlign.Start)
+                      .layoutWeight(1)
+                      .margin({ left: 12 })
+                    }
+                    .width('100%')
+
+                    // Shelter contact details
+                    Column() {
+                      // Address
+                      if (this.pet.shelter.address !== null && this.pet.shelter.address.street.length > 0) {
+                        Row() {
+                          Text('📍')
+                            .fontSize(14)
+                          Text(this.pet.shelter.address.street)
+                            .fontSize(13)
+                            .fontColor('#616161')
+                            .margin({ left: 8 })
+                            .layoutWeight(1)
+                        }
+                        .width('100%')
+                        .margin({ top: 12 })
+                      }
+
+                      // Phone
+                      if (this.pet.shelter.phone.length > 0) {
+                        Row() {
+                          Text('📞')
+                            .fontSize(14)
+                          Text(this.pet.shelter.phone)
+                            .fontSize(13)
+                            .fontColor('#2196F3')
+                            .margin({ left: 8 })
+                        }
+                        .width('100%')
+                        .margin({ top: 8 })
+                      }
+
+                      // Website
+                      if (this.pet.shelter.website.length > 0) {
+                        Row() {
+                          Text('🌐')
+                            .fontSize(14)
+                          Text(this.pet.shelter.website)
+                            .fontSize(13)
+                            .fontColor('#2196F3')
+                            .margin({ left: 8 })
+                            .maxLines(1)
+                            .textOverflow({ overflow: TextOverflow.Ellipsis })
+                            .layoutWeight(1)
+                        }
+                        .width('100%')
+                        .margin({ top: 8 })
                       }
                     }
-                    .alignItems(HorizontalAlign.Start)
-                    .margin({ left: 12 })
                   }
-                  .margin({ top: 8 })
+                  .width('100%')
+                  .padding(16)
+                  .backgroundColor('#FAFAFA')
+                  .borderRadius(12)
+                  .margin({ top: 12 })
                 }
                 .width('100%')
                 .alignItems(HorizontalAlign.Start)

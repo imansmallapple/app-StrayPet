@@ -228,10 +228,28 @@ export class PetService {
       pet.address = this.parseAddress(addressData);
     }
 
-    // Parse shelter
+    // Parse shelter - check both nested object and flat fields
     const shelterData = data['shelter'] as Record<string, Object> | null;
     if (shelterData !== null && shelterData !== undefined) {
       pet.shelter = this.parseShelter(shelterData);
+    } else if (data['shelter_id'] !== null && data['shelter_id'] !== undefined) {
+      // Parse from flat fields (shelter_id, shelter_name, shelter_phone, etc.)
+      const shelter = new Shelter();
+      shelter.id = Number(data['shelter_id']) || 0;
+      shelter.name = String(data['shelter_name'] || '');
+      shelter.description = String(data['shelter_description'] || '');
+      shelter.phone = String(data['shelter_phone'] || '');
+      shelter.website = String(data['shelter_website'] || '');
+      // Parse shelter address from flat field
+      const shelterAddr = String(data['shelter_address'] || '');
+      if (shelterAddr.length > 0) {
+        const addr = new Address();
+        addr.street = shelterAddr;
+        shelter.address = addr;
+      }
+      if (shelter.id > 0 || shelter.name.length > 0) {
+        pet.shelter = shelter;
+      }
     }
 
     // Parse created_by

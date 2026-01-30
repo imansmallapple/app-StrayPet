@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "Stray Pet - Find your furry friend"
     },
     {
       "name": "MobileAbility_desc",
-      "value": "description"
+      "value": "Pet adoption and rescue app"
     },
     {
       "name": "MobileAbility_label",
-      "value": "label"
+      "value": "Stray Pet"
     },
     {
       "name": "call_permission_reason",
