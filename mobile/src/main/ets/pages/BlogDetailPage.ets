@@ -1,7 +1,7 @@
 // Blog Detail Page
 import { router, promptAction } from '@kit.ArkUI';
 import { LoadingView, ErrorView } from '../components/CommonViews';
-import { BlogService, BlogArticle, BlogComment } from '../services/BlogService';
+import { BlogService, BlogArticle, BlogComment, FavoriteResult } from '../services/BlogService';
 import { TokenManager } from '../services/TokenManager';
 
 interface RouterParams {
@@ -21,9 +21,12 @@ struct BlogDetailPage {
   @State comments: BlogComment[] = [];
   @State isLoggedIn: boolean = false;
   @State isPostingComment: boolean = false;
+  @State replyingTo: BlogComment | null = null;  // Track which comment we're replying to
+  @State pressedCommentId: number = -1;  // Track which comment is being pressed
 
   private blogService: BlogService = new BlogService();
   private articleId: number = 0;
+  private commentInputController: TextInputController = new TextInputController();
 
   aboutToAppear(): void {
     this.isLoggedIn = TokenManager.getInstance().isLoggedIn();
@@ -72,11 +75,14 @@ struct BlogDetailPage {
 
     this.isPostingComment = true;
 
-    const result = await this.blogService.postComment(this.articleId, this.commentText.trim());
+    // Pass parent comment ID if replying to a comment
+    const parentId = this.replyingTo !== null ? this.replyingTo.id : null;
+    const result = await this.blogService.postComment(this.articleId, this.commentText.trim(), parentId);
 
     if (result.success) {
       this.commentText = '';
-      promptAction.showToast({ message: 'Comment posted successfully', duration: 2000 });
+      this.replyingTo = null;  // Clear reply state
+      promptAction.showToast({ message: parentId !== null ? 'Reply posted successfully' : 'Comment posted successfully', duration: 2000 });
       // Reload comments
       await this.loadComments();
     } else {
@@ -86,9 +92,46 @@ struct BlogDetailPage {
     this.isPostingComment = false;
   }
 
+  // Cancel replying to a comment
+  cancelReply(): void {
+    this.replyingTo = null;
+  }
+
+  // Start replying to a comment
+  startReply(comment: BlogComment): void {
+    if (!this.isLoggedIn) {
+      promptAction.showToast({ message: 'Please login to reply', duration: 2000 });
+      return;
+    }
+    this.replyingTo = comment;
+  }
+
   async toggleFavorite(): Promise<void> {
-    // Toggle favorite state (TODO: implement API call)
+    if (!this.isLoggedIn) {
+      promptAction.showToast({ message: 'Please login to favorite articles', duration: 2000 });
+      return;
+    }
+
+    const previousState = this.isFavorited;
+    // Optimistic update
     this.isFavorited = !this.isFavorited;
+
+    let result: FavoriteResult;
+    if (previousState) {
+      // Was favorited, now unfavorite
+      result = await this.blogService.unfavoriteArticle(this.articleId);
+    } else {
+      // Was not favorited, now favorite
+      result = await this.blogService.favoriteArticle(this.articleId);
+    }
+
+    if (result.success) {
+      promptAction.showToast({ message: result.message, duration: 2000 });
+    } else {
+      // Revert on failure
+      this.isFavorited = previousState;
+      promptAction.showToast({ message: result.errorMessage || 'Operation failed', duration: 2000 });
+    }
   }
 
   // Helper method to extract tag name from "id:name" format
@@ -143,26 +186,30 @@ struct BlogDetailPage {
         }
         .width(40)
         .height(40)
+        .borderRadius(20)
+        .backgroundColor('rgba(255,255,255,0.15)')
         .justifyContent(FlexAlign.Center)
         .onClick(() => { router.back(); })
 
         Blank()
 
-        // Star (Favorite) button
+        // Bookmark (Favorite) button
         Row() {
-          SymbolGlyph(this.isFavorited ? $r('sys.symbol.star_fill') : $r('sys.symbol.star'))
+          SymbolGlyph(this.isFavorited ? $r('sys.symbol.bookmark_fill') : $r('sys.symbol.bookmark'))
             .fontSize(22)
-            .fontColor([this.isFavorited ? '#FFD700' : '#FFFFFF'])
+            .fontColor([this.isFavorited ? '#FF6B35' : '#FFFFFF'])
         }
         .width(40)
         .height(40)
+        .borderRadius(20)
+        .backgroundColor('rgba(255,255,255,0.15)')
         .justifyContent(FlexAlign.Center)
         .onClick(() => {
           this.toggleFavorite();
         })
       }
       .width('100%')
-      .padding({ left: 8, right: 8 })
+      .padding({ left: 16, right: 16, top: 12 })
 
       // Title
       Text(this.article!.title)
@@ -280,97 +327,155 @@ struct BlogDetailPage {
   @Builder
   CommentItem(comment: BlogComment): void {
     Column() {
-      Row() {
-        // User avatar
-        Column() {
-          if (comment.user !== null && comment.user.avatar.length > 0) {
-            Image(comment.user.avatar)
-              .width(36)
-              .height(36)
-              .borderRadius(18)
-          } else {
-            Text(comment.user !== null ? comment.user.username.charAt(0).toUpperCase() : '?')
-              .fontSize(16)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#FFFFFF')
+      // Parent comment content - clickable area
+      Column() {
+        Row() {
+          // User avatar
+          Column() {
+            if (comment.user !== null && comment.user.avatar.length > 0) {
+              Image(comment.user.avatar)
+                .width(36)
+                .height(36)
+                .borderRadius(18)
+            } else {
+              Text(comment.user !== null ? comment.user.username.charAt(0).toUpperCase() : '?')
+                .fontSize(16)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#FFFFFF')
+            }
           }
-        }
-        .width(36)
-        .height(36)
-        .backgroundColor('#FF9800')
-        .borderRadius(18)
-        .justifyContent(FlexAlign.Center)
+          .width(36)
+          .height(36)
+          .backgroundColor('#FF9800')
+          .borderRadius(18)
+          .justifyContent(FlexAlign.Center)
 
-        Column() {
-          Text(comment.user !== null ? comment.user.username : 'Unknown')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#424242')
+          Column() {
+            Row() {
+              Text(comment.user !== null ? comment.user.username : 'Unknown')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor('#424242')
 
-          Text(comment.getFormattedDate())
-            .fontSize(11)
-            .fontColor('#9E9E9E')
-            .margin({ top: 2 })
+              Text(comment.getFormattedDate())
+                .fontSize(11)
+                .fontColor('#9E9E9E')
+                .margin({ left: 8 })
+
+              // Reply indicator text
+              Text('Reply')
+                .fontSize(11)
+                .fontColor('#2196F3')
+                .margin({ left: 8 })
+            }
+          }
+          .alignItems(HorizontalAlign.Start)
+          .margin({ left: 10 })
         }
-        .alignItems(HorizontalAlign.Start)
-        .margin({ left: 10 })
+        .width('100%')
+
+        Text(comment.content)
+          .fontSize(14)
+          .fontColor('#424242')
+          .lineHeight(20)
+          .width('100%')
+          .margin({ top: 8, left: 46 })
       }
       .width('100%')
+      .padding({ top: 12, bottom: 12, left: 8, right: 8 })
+      .borderRadius(8)
+      .backgroundColor(this.pressedCommentId === comment.id ? '#F0F0F0' : Color.Transparent)
+      .onTouch((event: TouchEvent) => {
+        if (event.type === TouchType.Down) {
+          this.pressedCommentId = comment.id;
+        } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+          this.pressedCommentId = -1;
+        }
+      })
+      .onClick(() => {
+        this.startReply(comment);
+        focusControl.requestFocus('commentInput');
+      })
 
-      Text(comment.content)
-        .fontSize(14)
-        .fontColor('#424242')
-        .lineHeight(20)
-        .width('100%')
-        .margin({ top: 8 })
-
-      // Show replies if any
+      // Show replies if any - outside the clickable area
       if (comment.replies.length > 0) {
-        Column() {
+        Column({ space: 12 }) {
           ForEach(comment.replies, (reply: BlogComment) => {
-            Column() {
-              Row() {
-                Column() {
+            Row() {
+              // Reply user avatar
+              Column() {
+                if (reply.user !== null && reply.user.avatar.length > 0) {
+                  Image(reply.user.avatar)
+                    .width(32)
+                    .height(32)
+                    .borderRadius(16)
+                } else {
                   Text(reply.user !== null ? reply.user.username.charAt(0).toUpperCase() : '?')
-                    .fontSize(12)
+                    .fontSize(14)
                     .fontWeight(FontWeight.Bold)
                     .fontColor('#FFFFFF')
                 }
-                .width(28)
-                .height(28)
-                .backgroundColor('#2196F3')
-                .borderRadius(14)
-                .justifyContent(FlexAlign.Center)
+              }
+              .width(32)
+              .height(32)
+              .backgroundColor('#9E9E9E')
+              .borderRadius(16)
+              .justifyContent(FlexAlign.Center)
 
-                Column() {
+              // Reply content
+              Column() {
+                Row() {
                   Text(reply.user !== null ? reply.user.username : 'Unknown')
                     .fontSize(13)
                     .fontWeight(FontWeight.Medium)
                     .fontColor('#424242')
-                }
-                .margin({ left: 8 })
-              }
 
-              Text(reply.content)
-                .fontSize(13)
-                .fontColor('#616161')
-                .lineHeight(18)
-                .width('100%')
-                .margin({ top: 4 })
+                  Text(reply.getFormattedDate())
+                    .fontSize(11)
+                    .fontColor('#9E9E9E')
+                    .margin({ left: 8 })
+
+                  Text('Reply')
+                    .fontSize(11)
+                    .fontColor('#2196F3')
+                    .margin({ left: 8 })
+                }
+
+                Text(reply.content)
+                  .fontSize(13)
+                  .fontColor('#616161')
+                  .lineHeight(18)
+                  .width('100%')
+                  .margin({ top: 4 })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+              .margin({ left: 10 })
             }
             .width('100%')
-            .padding(10)
-            .backgroundColor('#F5F5F5')
+            .alignItems(VerticalAlign.Top)
+            .padding({ top: 6, bottom: 6, left: 8, right: 8 })
             .borderRadius(8)
-            .margin({ top: 8 })
+            .backgroundColor(this.pressedCommentId === reply.id ? '#F0F0F0' : Color.Transparent)
+            .onTouch((event: TouchEvent) => {
+              if (event.type === TouchType.Down) {
+                this.pressedCommentId = reply.id;
+              } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+                this.pressedCommentId = -1;
+              }
+            })
+            .onClick(() => {
+              this.startReply(comment);  // Reply to the parent comment
+              focusControl.requestFocus('commentInput');
+            })
           })
         }
         .width('100%')
-        .margin({ top: 8, left: 46 })
+        .margin({ top: 12 })
+        .padding({ left: 46 })
       }
     }
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
   }
 
   @Builder
@@ -432,52 +537,77 @@ struct BlogDetailPage {
   BottomCommentBar(): void {
     if (this.isLoggedIn) {
       // Logged in: Show comment input
-      Row() {
-        // Comment input
-        Row() {
-          SymbolGlyph($r('sys.symbol.pencil_line'))
-            .fontSize(16)
-            .fontColor(['#9E9E9E'])
-            .margin({ right: 8 })
-
-          TextInput({ placeholder: 'Write a comment...', text: this.commentText })
-            .layoutWeight(1)
-            .height(36)
-            .backgroundColor(Color.Transparent)
-            .placeholderColor('#9E9E9E')
-            .placeholderFont({ size: 14 })
-            .fontSize(14)
-            .fontColor('#212121')
-            .onChange((value: string) => {
-              this.commentText = value;
-            })
-        }
-        .layoutWeight(1)
-        .height(44)
-        .padding({ left: 12, right: 12 })
-        .backgroundColor('#F5F5F5')
-        .borderRadius(22)
-
-        // Send button
-        Row() {
-          SymbolGlyph($r('sys.symbol.arrow_up_circle_fill'))
-            .fontSize(20)
-            .fontColor(['#FFFFFF'])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(this.isPostingComment ? '#BDBDBD' : '#FF9800')
-        .borderRadius(22)
-        .justifyContent(FlexAlign.Center)
-        .margin({ left: 12 })
-        .onClick(() => {
-          if (!this.isPostingComment) {
-            this.postComment();
+      Column() {
+        // Reply indicator
+        if (this.replyingTo !== null) {
+          Row() {
+            Text('Replying to ')
+              .fontSize(12)
+              .fontColor('#757575')
+            Text(this.replyingTo.user !== null ? this.replyingTo.user.username : 'Unknown')
+              .fontSize(12)
+              .fontColor('#FF9800')
+              .fontWeight(FontWeight.Medium)
+            Blank()
+            Text('Cancel')
+              .fontSize(12)
+              .fontColor('#F44336')
+              .onClick(() => {
+                this.cancelReply();
+              })
           }
-        })
+          .width('100%')
+          .padding({ left: 16, right: 16, top: 8, bottom: 4 })
+        }
+
+        Row() {
+          // Comment input
+          Row() {
+            SymbolGlyph($r('sys.symbol.pencil_line'))
+              .fontSize(16)
+              .fontColor(['#9E9E9E'])
+              .margin({ right: 8 })
+
+            TextInput({ placeholder: this.replyingTo !== null ? 'Write a reply...' : 'Write a comment...', text: this.commentText, controller: this.commentInputController })
+              .layoutWeight(1)
+              .height(36)
+              .backgroundColor(Color.Transparent)
+              .placeholderColor('#9E9E9E')
+              .placeholderFont({ size: 14 })
+              .fontSize(14)
+              .fontColor('#212121')
+              .id('commentInput')
+              .onChange((value: string) => {
+                this.commentText = value;
+              })
+          }
+          .layoutWeight(1)
+          .height(44)
+          .padding({ left: 12, right: 12 })
+          .backgroundColor('#F5F5F5')
+          .borderRadius(22)
+
+          // Send button
+          Row() {
+            SymbolGlyph($r('sys.symbol.arrow_up_circle_fill'))
+              .fontSize(20)
+              .fontColor(['#FFFFFF'])
+          }
+          .width(44)
+          .height(44)
+          .backgroundColor(this.isPostingComment ? '#BDBDBD' : '#FF9800')
+          .borderRadius(22)
+          .justifyContent(FlexAlign.Center)
+          .margin({ left: 12 })
+          .onClick(() => {
+            if (!this.isPostingComment) {
+              this.postComment();
+            }
+          })
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, top: this.replyingTo !== null ? 4 : 12, bottom: 12 })
       }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 12 })
       .backgroundColor('#FFFFFF')
       .shadow({ radius: 8, color: '#1A000000', offsetX: 0, offsetY: -2 })
     } else {
@@ -545,6 +675,12 @@ struct BlogDetailPage {
         .scrollBar(BarState.Off)
         .align(Alignment.Top)
         .edgeEffect(EdgeEffect.Spring)
+        .onClick(() => {
+          // Cancel reply mode when tapping outside comment input
+          if (this.replyingTo !== null) {
+            this.cancelReply();
+          }
+        })
 
         // Fixed bottom comment bar
         this.BottomCommentBar()

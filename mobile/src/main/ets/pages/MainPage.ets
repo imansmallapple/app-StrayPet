@@ -3,6 +3,7 @@
 
 import { router } from '@kit.ArkUI';
 import { TokenManager } from '../services/TokenManager';
+import { common } from '@kit.AbilityKit';
 
 // Import tab content builders
 import { HomeTabContent } from '../components/tabs/HomeTabContent';
@@ -17,10 +18,23 @@ struct MainPage {
   @State currentTab: number = 0;
   @State isLoggedIn: boolean = false;
   private tabController: TabsController = new TabsController();
+  private context: common.UIAbilityContext | null = null;
 
   aboutToAppear(): void {
     console.info('[MainPage] aboutToAppear');
-    this.checkLoginStatus();
+    this.context = getContext(this) as common.UIAbilityContext;
+    // Load saved tokens from preferences on app startup
+    this.loadSavedTokens();
+  }
+
+  async loadSavedTokens(): Promise<void> {
+    if (this.context !== null) {
+      console.info('[MainPage] Loading saved tokens from preferences...');
+      const tokenManager = TokenManager.getInstance();
+      tokenManager.setContext(this.context);
+      await tokenManager.loadFromPreferences(this.context);
+      this.checkLoginStatus();
+    }
   }
 
   onPageShow(): void {

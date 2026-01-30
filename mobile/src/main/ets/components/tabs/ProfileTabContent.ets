@@ -37,12 +37,14 @@ export struct ProfileTabContent {
   private userService: UserService = new UserService();
 
   aboutToAppear(): void {
+    console.info('[ProfileTab] aboutToAppear, isLoggedIn:', this.isLoggedIn);
     if (this.isLoggedIn) {
       this.loadUserInfo();
     }
   }
 
   onLoginStateChange(): void {
+    console.info('[ProfileTab] onLoginStateChange, isLoggedIn:', this.isLoggedIn);
     if (this.isLoggedIn) {
       this.loadUserInfo();
     } else {
@@ -59,9 +61,10 @@ export struct ProfileTabContent {
 
   async loadUserInfo(): Promise<void> {
     console.info('[ProfileTab] Loading user info, isLoggedIn:', this.isLoggedIn);
+    console.info('[ProfileTab] Current token length:', TokenManager.getInstance().getAccessToken().length);
     this.isLoading = true;
     const result: UserResult = await this.userService.getCurrentUser();
-    console.info('[ProfileTab] Result success:', result.success);
+    console.info('[ProfileTab] Result success:', result.success, 'errorMessage:', result.errorMessage);
     if (result.success && result.data !== null) {
       console.info('[ProfileTab] User data:', result.data.username, result.data.email);
       this.username = result.data.username;

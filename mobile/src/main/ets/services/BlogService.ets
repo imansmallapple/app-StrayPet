@@ -198,12 +198,25 @@ export class ArticleFilter {
   }
 }
 
+// Result classes for favorite operations
+export class FavoriteResult {
+  success: boolean = false;
+  status: string = '';
+  message: string = '';
+  errorMessage: string = '';
+
+  constructor() {}
+}
+
 // API Endpoints for Blog
 class BlogEndpoints {
   static readonly ARTICLES: string = 'blog/article/';
   static readonly ARTICLE_DETAIL: string = 'blog/article/{id}/';
   static readonly ARTICLE_COMMENTS: string = 'blog/article/{id}/comments/';
   static readonly ARTICLE_ADD_COMMENT: string = 'blog/article/{id}/add_comment/';
+  static readonly ARTICLE_FAVORITE: string = 'blog/article/{id}/favorite/';
+  static readonly ARTICLE_UNFAVORITE: string = 'blog/article/{id}/unfavorite/';
+  static readonly ARTICLE_FAVORITES: string = 'blog/article/favorites/';
   static readonly CATEGORIES: string = 'blog/category/';
   static readonly TAGS: string = 'blog/tag/';
 }
@@ -524,5 +537,87 @@ export class BlogService {
     }
 
     return comment;
+  }
+
+  // Favorite related methods
+  async favoriteArticle(articleId: number): Promise<FavoriteResult> {
+    const result = new FavoriteResult();
+    const endpoint = BlogEndpoints.ARTICLE_FAVORITE.replace('{id}', articleId.toString());
+    const url = ApiConfig.BASE_URL + endpoint;
+
+    try {
+      const response = await this.httpClient.post(url, '{}', true);
+
+      if (response.success) {
+        const parsed = JSON.parse(response.data) as Record<string, Object>;
+        result.status = String(parsed['status'] || '');
+        result.message = String(parsed['message'] || '');
+        result.success = true;
+      } else {
+        result.errorMessage = this.parseErrorMessage(response.data);
+      }
+    } catch (error) {
+      result.errorMessage = error instanceof Error ? error.message : 'Failed to favorite article';
+    }
+
+    return result;
+  }
+
+  async unfavoriteArticle(articleId: number): Promise<FavoriteResult> {
+    const result = new FavoriteResult();
+    const endpoint = BlogEndpoints.ARTICLE_UNFAVORITE.replace('{id}', articleId.toString());
+    const url = ApiConfig.BASE_URL + endpoint;
+
+    try {
+      const response = await this.httpClient.post(url, '{}', true);
+
+      if (response.success) {
+        const parsed = JSON.parse(response.data) as Record<string, Object>;
+        result.status = String(parsed['status'] || '');
+        result.message = String(parsed['message'] || '');
+        result.success = true;
+      } else {
+        result.errorMessage = this.parseErrorMessage(response.data);
+      }
+    } catch (error) {
+      result.errorMessage = error instanceof Error ? error.message : 'Failed to unfavorite article';
+    }
+
+    return result;
+  }
+
+  async getFavoriteArticles(page: number = 1, pageSize: number = 20): Promise<ArticleListResult> {
+    const result = new ArticleListResult();
+    const params = new Map<string, string>();
+    params.set('page', page.toString());
+    params.set('page_size', pageSize.toString());
+    const url = ApiConfig.buildUrlWithQuery(BlogEndpoints.ARTICLE_FAVORITES, params);
+
+    try {
+      const response = await this.httpClient.get(url, true);
+
+      if (response.success) {
+        const parsed = JSON.parse(response.data) as Record<string, Object>;
+        const resultsArray = parsed['results'] as Array<Record<string, Object>>;
+
+        if (Array.isArray(resultsArray)) {
+          resultsArray.forEach((item: Record<string, Object>) => {
+            const article = this.parseArticle(item);
+            result.articles.push(article);
+          });
+        }
+
+        result.count = Number(parsed['count']) || 0;
+        result.next = String(parsed['next'] || '');
+        result.previous = String(parsed['previous'] || '');
+        result.success = true;
+      } else {
+        result.errorMessage = this.parseErrorMessage(response.data);
+      }
+    } catch (error) {
+      result.errorMessage = error instanceof Error ? error.message : 'Failed to get favorite articles';
+    }
+
+    return result;
   }
 }

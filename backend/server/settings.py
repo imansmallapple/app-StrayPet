@@ -181,8 +181,14 @@ EMAIL_USER_SSL = True
 # Cross-origin operation, not good for online request
 CORS_ALLOW_ALL_ORIGINS = True
 
+from datetime import timedelta
+
 SIMPLE_JWT = {
-    "TOKEN_OBTAIN_SERIALIZER": "apps.user.serializer.LoginSerializer"
+    "TOKEN_OBTAIN_SERIALIZER": "apps.user.serializer.LoginSerializer",
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),  # Access token valid for 1 hour
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # Refresh token valid for 7 days
+    "ROTATE_REFRESH_TOKENS": True,  # Issue new refresh token on refresh
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # Mapbox token (optional) for server-side geocoding

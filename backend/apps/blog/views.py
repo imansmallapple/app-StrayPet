@@ -282,9 +282,9 @@ class ArticleViewSet(mixins.ListModelMixin,
             article=article
         )
         if created:
-            return Response({'status': 'favorited', 'message': '收藏成功'})
+            return Response({'status': 'favorited', 'message': 'Added to favorites'})
         else:
-            return Response({'status': 'already_favorited', 'message': '已经收藏过了'}, status=status.HTTP_200_OK)
+            return Response({'status': 'already_favorited', 'message': 'Already in favorites'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def unfavorite(self, request, pk=None):
@@ -295,9 +295,9 @@ class ArticleViewSet(mixins.ListModelMixin,
             article=article
         ).delete()
         if deleted_count > 0:
-            return Response({'status': 'unfavorited', 'message': '已取消收藏'})
+            return Response({'status': 'unfavorited', 'message': 'Removed from favorites'})
         else:
-            return Response({'status': 'not_favorited', 'message': '还未收藏'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'status': 'not_favorited', 'message': 'Not in favorites'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class TagViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):

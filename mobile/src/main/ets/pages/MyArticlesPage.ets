@@ -10,7 +10,10 @@ struct MyArticlesPage {
         SymbolGlyph($r('sys.symbol.chevron_left'))
           .fontSize(24)
           .fontColor(['#424242'])
-          .onClick(() => { router.back(); })
+          .onClick(() => {
+            // router.back();
+            this.getUIContext().getRouter().back()
+          })
         Text('My Articles')
           .fontSize(18)
           .fontWeight(FontWeight.Bold)

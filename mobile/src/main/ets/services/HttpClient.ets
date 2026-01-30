@@ -69,6 +69,22 @@ export class HttpClient {
       } else {
         response.data = JSON.stringify(result.result);
       }
+
+      // Handle 401 - try to refresh token
+      if (result.responseCode === 401 && needAuth) {
+        console.info('[HttpClient] Got 401, trying to refresh token...');
+        httpRequest.destroy();
+        const refreshed = await TokenManager.getInstance().refreshAccessToken();
+        if (refreshed) {
+          // Retry the request with new token
+          console.info('[HttpClient] Token refreshed, retrying request...');
+          return this.get(url, needAuth);
+        } else {
+          console.error('[HttpClient] Token refresh failed');
+          response.errorMessage = 'Authentication failed. Please login again.';
+        }
+        return response;
+      }
     } catch (error) {
       response.success = false;
       if (error instanceof Error) {
@@ -104,6 +120,21 @@ export class HttpClient {
         response.data = result.result;
       } else {
         response.data = JSON.stringify(result.result);
+      }
+
+      // Handle 401 - try to refresh token
+      if (result.responseCode === 401 && needAuth) {
+        console.info('[HttpClient] POST got 401, trying to refresh token...');
+        httpRequest.destroy();
+        const refreshed = await TokenManager.getInstance().refreshAccessToken();
+        if (refreshed) {
+          console.info('[HttpClient] Token refreshed, retrying POST request...');
+          return this.post(url, body, needAuth);
+        } else {
+          console.error('[HttpClient] Token refresh failed for POST');
+          response.errorMessage = 'Authentication failed. Please login again.';
+        }
+        return response;
       }
     } catch (error) {
       response.success = false;
